@@ -341,7 +341,3 @@ export const inspect = {
   onAnnouncement: 'Inspect mode on. Move focus to see each element’s specs. Press Escape to exit.',
   offAnnouncement: 'Inspect mode off.',
 };
-
-export const footer = {
-  note: 'Designed in Figma, built with Astro.',
-};

@@ -1,12 +1,12 @@
 ---
-import { footer, person } from '../data/site';
+import { person } from '../data/site';
 
 const year = new Date().getFullYear();
 ---
 
 <footer class="footer">
   <div class="container inner">
-    <p>&copy; {year} {person.name}. {footer.note}</p>
+    <p>&copy; {year} {person.name}.</p>
     <ul class="links">
       <li><a href={`mailto:${person.email}`}>Email</a></li>
       <li><a href={person.upwork} target="_blank" rel="noopener">Upwork<span class="sr-only"> (opens in a new tab)</span></a></li>
