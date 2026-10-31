@@ -1,0 +1,129 @@
+---
+/**
+ * Figma-style selection: a 1px blue outline with four square corner handles.
+ * - mode="draw": the outline traces itself in once on page load (hero only).
+ * - mode="hover": hidden until the nearest `.selectable` ancestor is hovered or focused.
+ * The parent must be `position: relative`.
+ */
+interface Props {
+  mode?: 'draw' | 'hover' | 'static';
+  /** CSS inset around the parent, e.g. "-8px" or "12px -16px". */
+  inset?: string;
+}
+
+const { mode = 'static', inset = '0px' } = Astro.props;
+---
+
+<span class:list={['sel', `sel--${mode}`]} style={`--sel-inset: ${inset}`} aria-hidden="true">
+  <span class="side side--top"></span>
+  <span class="side side--right"></span>
+  <span class="side side--bottom"></span>
+  <span class="side side--left"></span>
+  <span class="handle handle--tl"></span>
+  <span class="handle handle--tr"></span>
+  <span class="handle handle--br"></span>
+  <span class="handle handle--bl"></span>
+</span>
+
+<style>
+  .sel {
+    position: absolute;
+    inset: var(--sel-inset);
+    pointer-events: none;
+  }
+
+  .side {
+    position: absolute;
+    background: var(--blue);
+  }
+
+  .side--top,
+  .side--bottom {
+    left: 0;
+    right: 0;
+    height: 1px;
+  }
+
+  .side--left,
+  .side--right {
+    top: 0;
+    bottom: 0;
+    width: 1px;
+  }
+
+  .side--top { top: 0; transform-origin: left center; }
+  .side--right { right: 0; transform-origin: center top; }
+  .side--bottom { bottom: 0; transform-origin: right center; }
+  .side--left { left: 0; transform-origin: center bottom; }
+
+  .handle {
+    position: absolute;
+    width: 7px;
+    height: 7px;
+    background: var(--handle);
+    border: 1px solid var(--blue);
+  }
+
+  .handle--tl { top: -3px; left: -3px; }
+  .handle--tr { top: -3px; right: -3px; }
+  .handle--br { bottom: -3px; right: -3px; }
+  .handle--bl { bottom: -3px; left: -3px; }
+
+  /* Hover mode: instant, like the canvas in Figma. */
+  .sel--hover {
+    opacity: 0;
+  }
+
+  :global(.selectable:hover) > .sel--hover,
+  :global(.selectable:focus-within) > .sel--hover {
+    opacity: 1;
+  }
+
+  /* Draw mode: the one orchestrated load animation on the page.
+     The outline traces clockwise, then the handles land. */
+  @media (prefers-reduced-motion: no-preference) {
+    .sel--draw .side--top,
+    .sel--draw .side--bottom {
+      animation: draw-x 0.26s cubic-bezier(0.65, 0, 0.35, 1) both;
+    }
+
+    .sel--draw .side--right,
+    .sel--draw .side--left {
+      animation: draw-y 0.2s cubic-bezier(0.65, 0, 0.35, 1) both;
+    }
+
+    .sel--draw .side--top { animation-delay: 0.25s; }
+    .sel--draw .side--right { animation-delay: 0.51s; }
+    .sel--draw .side--bottom { animation-delay: 0.71s; }
+    .sel--draw .side--left { animation-delay: 0.97s; }
+
+    .sel--draw .handle {
+      animation: handle-in 0.22s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+    }
+
+    .sel--draw .handle--tl { animation-delay: 1.15s; }
+    .sel--draw .handle--tr { animation-delay: 1.19s; }
+    .sel--draw .handle--br { animation-delay: 1.23s; }
+    .sel--draw .handle--bl { animation-delay: 1.27s; }
+  }
+
+  @keyframes draw-x {
+    from { transform: scaleX(0); }
+    to { transform: scaleX(1); }
+  }
+
+  @keyframes draw-y {
+    from { transform: scaleY(0); }
+    to { transform: scaleY(1); }
+  }
+
+  @keyframes handle-in {
+    from { transform: scale(0); }
+    to { transform: scale(1); }
+  }
+
+  @media (forced-colors: active) {
+    .side { background: Highlight; }
+    .handle { border-color: Highlight; background: Canvas; }
+  }
+</style>

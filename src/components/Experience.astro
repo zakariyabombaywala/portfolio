@@ -1,0 +1,170 @@
+---
+import SectionHeading from './SectionHeading.astro';
+import { experience } from '../data/site';
+
+/** "Oct 2026" -> "2026-10" for the <time> element. */
+const toDatetime = (label: string) => {
+  const date = new Date(`1 ${label}`);
+  if (Number.isNaN(date.getTime())) return undefined;
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+};
+---
+
+<section class="section" id="experience" aria-labelledby="experience-title">
+  <div class="container layout">
+    <div>
+      <SectionHeading id="experience-title" title={experience.title} />
+
+      <ol class="timeline">
+        {experience.roles.map((item, i) => (
+          <li class:list={['entry', { 'entry--current': i === 0 }]}>
+            <span class="marker" aria-hidden="true"></span>
+            <p class="dates">
+              <time datetime={toDatetime(item.start)}>{item.start}</time>
+              <span aria-hidden="true"> – </span>
+              <span class="sr-only"> to </span>
+              {toDatetime(item.end) ? <time datetime={toDatetime(item.end)}>{item.end}</time> : item.end}
+            </p>
+            <h3>{item.role}</h3>
+            <p class="company">{item.company}</p>
+            <ul class="points">
+              {item.points.map((point) => <li>{point}</li>)}
+            </ul>
+          </li>
+        ))}
+      </ol>
+    </div>
+
+    <aside class="education" aria-labelledby="education-title">
+      <h3 id="education-title" class="education-title">{experience.educationTitle}</h3>
+      <ul>
+        {experience.education.map((item) => (
+          <li class="school">
+            <p class="degree">{item.degree}</p>
+            <p>{item.school}</p>
+            <p class="muted">{item.years}, {item.note}</p>
+          </li>
+        ))}
+      </ul>
+    </aside>
+  </div>
+</section>
+
+<style>
+  .layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(16rem, 22rem);
+    gap: clamp(3rem, 2rem + 4vw, 6rem);
+  }
+
+  .timeline {
+    position: relative;
+    border-left: 1px solid var(--line);
+    margin-left: 4px;
+  }
+
+  .entry {
+    position: relative;
+    padding: 0 0 3rem 2rem;
+  }
+
+  .entry:last-child {
+    padding-bottom: 0;
+  }
+
+  /* Square markers echo the selection handles. */
+  .marker {
+    position: absolute;
+    top: 0.45rem;
+    left: -5px;
+    width: 9px;
+    height: 9px;
+    background: var(--canvas);
+    border: 1px solid var(--muted);
+  }
+
+  .entry--current .marker {
+    background: var(--handle);
+    border-color: var(--blue);
+  }
+
+  .dates {
+    color: var(--muted);
+    font-size: var(--step--1);
+    font-variant-numeric: tabular-nums;
+  }
+
+  h3 {
+    margin-top: 0.375rem;
+    font-size: var(--step-2);
+  }
+
+  .company {
+    margin-top: 0.125rem;
+    font-weight: 500;
+  }
+
+  .points {
+    display: grid;
+    gap: 0.5rem;
+    max-width: 40rem;
+    margin-top: 1rem;
+    color: var(--muted);
+  }
+
+  .points li {
+    position: relative;
+    padding-left: 1.125rem;
+  }
+
+  .points li::before {
+    content: '';
+    position: absolute;
+    top: 0.75em;
+    left: 0;
+    width: 0.5rem;
+    height: 1px;
+    background: var(--muted);
+  }
+
+  /* Education sits beside the timeline on wide screens. */
+  .education {
+    align-self: start;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--line);
+  }
+
+  .education-title {
+    margin: 0 0 1.5rem;
+    font-size: var(--step-1);
+  }
+
+  .school + .school {
+    margin-top: 1.5rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--line);
+  }
+
+  .degree {
+    font-weight: 600;
+  }
+
+  .muted {
+    color: var(--muted);
+    font-size: var(--step--1);
+    margin-top: 0.25rem;
+  }
+
+  @media (min-width: 56rem) {
+    .education {
+      /* Align with the first entry, below the section heading. */
+      margin-top: calc(var(--step-3) * 1.15 + clamp(2.5rem, 2rem + 2vw, 3.5rem));
+    }
+  }
+
+  @media (max-width: 55.99rem) {
+    .layout {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>

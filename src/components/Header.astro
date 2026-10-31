@@ -1,0 +1,295 @@
+---
+import { nav, person, contact } from '../data/site';
+---
+
+<header class="header">
+  <div class="container bar">
+    <a class="name" href="#top">{person.name}</a>
+
+    <nav class="nav" aria-label="Main">
+      <button
+        class="menu-btn"
+        type="button"
+        aria-expanded="false"
+        aria-controls="site-menu"
+        data-menu-button
+      >
+        Menu
+      </button>
+      <div class="menu" id="site-menu" data-menu>
+        <ul class="links">
+          {nav.map((item) => (
+            <li>
+              <a href={item.href}>{item.label}</a>
+            </li>
+          ))}
+        </ul>
+        <a class="btn btn--primary menu-cta" href={person.upwork} target="_blank" rel="noopener">
+          {contact.upworkLabel}<span class="sr-only"> (opens in a new tab)</span>
+        </a>
+      </div>
+    </nav>
+
+    <div class="actions">
+      <button class="theme-btn" type="button" data-theme-toggle hidden>
+        <svg class="icon icon--moon" viewBox="0 0 20 20" width="18" height="18" aria-hidden="true">
+          <path
+            d="M16.5 12.4A7 7 0 0 1 7.6 3.5a7 7 0 1 0 8.9 8.9Z"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.6"
+            stroke-linejoin="round"></path>
+        </svg>
+        <svg class="icon icon--sun" viewBox="0 0 20 20" width="18" height="18" aria-hidden="true">
+          <circle cx="10" cy="10" r="3.4" fill="none" stroke="currentColor" stroke-width="1.6"></circle>
+          <path
+            d="M10 1.8v2M10 16.2v2M1.8 10h2M16.2 10h2M4.2 4.2l1.4 1.4M14.4 14.4l1.4 1.4M4.2 15.8l1.4-1.4M14.4 5.6l1.4-1.4"
+            stroke="currentColor"
+            stroke-width="1.6"
+            stroke-linecap="round"></path>
+        </svg>
+        <span class="sr-only" data-theme-label>Switch theme</span>
+      </button>
+      <a class="btn btn--primary bar-cta" href={person.upwork} target="_blank" rel="noopener">
+        {contact.upworkLabel}<span class="sr-only"> (opens in a new tab)</span>
+      </a>
+    </div>
+  </div>
+</header>
+
+<script>
+  // Theme toggle
+  const toggle = document.querySelector<HTMLButtonElement>('[data-theme-toggle]');
+  const label = document.querySelector<HTMLElement>('[data-theme-label]');
+  const root = document.documentElement;
+  const media = window.matchMedia('(prefers-color-scheme: dark)');
+
+  const current = () =>
+    (root.dataset.theme as 'light' | 'dark' | undefined) ?? (media.matches ? 'dark' : 'light');
+
+  const syncLabel = () => {
+    const next = current() === 'dark' ? 'light' : 'dark';
+    if (label) label.textContent = `Switch to ${next} theme`;
+  };
+
+  if (toggle) {
+    toggle.hidden = false;
+    syncLabel();
+    media.addEventListener('change', syncLabel);
+    toggle.addEventListener('click', () => {
+      const next = current() === 'dark' ? 'light' : 'dark';
+      root.dataset.theme = next;
+      try {
+        localStorage.setItem('theme', next);
+      } catch {}
+      syncLabel();
+    });
+  }
+
+  // Mobile menu
+  const menuButton = document.querySelector<HTMLButtonElement>('[data-menu-button]');
+  const menu = document.querySelector<HTMLElement>('[data-menu]');
+
+  if (menuButton && menu) {
+    const setOpen = (open: boolean) => {
+      menuButton.setAttribute('aria-expanded', String(open));
+      menu.classList.toggle('is-open', open);
+    };
+
+    menuButton.addEventListener('click', () => {
+      setOpen(menuButton.getAttribute('aria-expanded') !== 'true');
+    });
+
+    menu.addEventListener('click', (event) => {
+      if ((event.target as HTMLElement).closest('a')) setOpen(false);
+    });
+
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape' && menu.classList.contains('is-open')) {
+        setOpen(false);
+        menuButton.focus();
+      }
+    });
+
+    window.matchMedia('(min-width: 56rem)').addEventListener('change', () => setOpen(false));
+  }
+</script>
+
+<style>
+  .header {
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    background: var(--surface);
+    border-bottom: 1px solid var(--line);
+  }
+
+  .bar {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+    min-height: var(--header-h);
+  }
+
+  .name {
+    font-weight: 700;
+    font-size: 1.0625rem;
+    text-decoration: none;
+    white-space: nowrap;
+    margin-right: auto;
+  }
+
+  .links {
+    display: flex;
+    gap: 0.25rem;
+  }
+
+  .links a {
+    display: block;
+    padding: 0.5rem 0.75rem;
+    border-radius: var(--radius);
+    color: var(--muted);
+    font-size: 0.9375rem;
+    font-weight: 500;
+    text-decoration: none;
+  }
+
+  .links a:hover {
+    color: var(--ink);
+  }
+
+  .menu-btn,
+  .menu-cta {
+    display: none;
+  }
+
+  .actions {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .theme-btn {
+    display: inline-grid;
+    place-items: center;
+    width: 2.75rem;
+    height: 2.75rem;
+    border: 1px solid transparent;
+    border-radius: var(--radius);
+    background: none;
+    color: var(--muted);
+    cursor: pointer;
+  }
+
+  .theme-btn:hover {
+    color: var(--ink);
+    border-color: var(--line);
+  }
+
+  .theme-btn[hidden] {
+    display: none;
+  }
+
+  /* Show the icon for the theme you would switch to. */
+  .icon--sun {
+    display: none;
+  }
+
+  :global([data-theme='dark']) .icon--sun {
+    display: block;
+  }
+
+  :global([data-theme='dark']) .icon--moon {
+    display: none;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :global(:root:not([data-theme='light'])) .icon--sun {
+      display: block;
+    }
+
+    :global(:root:not([data-theme='light'])) .icon--moon {
+      display: none;
+    }
+  }
+
+  /* Small screens: nav collapses into a disclosure menu. */
+  @media (max-width: 55.99rem) {
+    .bar {
+      gap: 0.5rem;
+    }
+
+    .nav {
+      order: 2;
+    }
+
+    .menu-btn {
+      display: inline-flex;
+      align-items: center;
+      min-height: 2.75rem;
+      padding: 0 0.875rem;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--surface);
+      font-size: 0.9375rem;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .menu-btn[aria-expanded='true'] {
+      border-color: var(--blue);
+      box-shadow: inset 0 0 0 1px var(--blue);
+    }
+
+    .menu {
+      display: none;
+      position: absolute;
+      top: 100%;
+      left: 0;
+      right: 0;
+      padding: 0.75rem var(--gutter) 1.25rem;
+      background: var(--surface);
+      border-bottom: 1px solid var(--line);
+    }
+
+    .menu.is-open {
+      display: block;
+    }
+
+    .links {
+      flex-direction: column;
+      gap: 0;
+    }
+
+    .links a {
+      padding: 0.75rem 0;
+      border-bottom: 1px solid var(--line);
+      border-radius: 0;
+      font-size: var(--step-1);
+      color: var(--ink);
+    }
+
+    .actions {
+      order: 1;
+    }
+  }
+
+  /* Phones: the Upwork button moves into the menu to keep the bar uncluttered. */
+  @media (max-width: 35.99rem) {
+    .bar-cta {
+      display: none;
+    }
+
+    .menu-cta {
+      display: flex;
+      margin-top: 1.25rem;
+    }
+  }
+
+  /* No JavaScript: keep the nav visible as a plain list. */
+  @media (max-width: 55.99rem) {
+    :global(html:not(.js)) .menu-btn {
+      display: none;
+    }
+  }
+</style>

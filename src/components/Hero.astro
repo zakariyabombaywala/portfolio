@@ -1,0 +1,267 @@
+---
+import SelectionBox from './SelectionBox.astro';
+import { hero } from '../data/site';
+---
+
+<section class="hero" aria-labelledby="hero-title">
+  <div class="container">
+    <div class="frame" data-frame>
+      <p class="spec" aria-hidden="true">{hero.specLayer}, <span data-spec-size>88/92</span>, {hero.specFont}</p>
+
+      <h1 id="hero-title" class="headline" data-headline>{hero.headline}</h1>
+
+      <SelectionBox mode="draw" />
+
+      <span class="redline redline--v" aria-hidden="true">
+        <span class="redline-label" data-redline-h>184</span>
+      </span>
+      <span class="redline redline--h" aria-hidden="true">
+        <span class="redline-label" data-redline-w>320</span>
+      </span>
+    </div>
+
+    <p class="intro">{hero.intro}</p>
+
+    <div class="ctas">
+      <a class="btn btn--primary" href={hero.primaryCta.href}>{hero.primaryCta.label}</a>
+      <a class="btn btn--secondary" href={hero.secondaryCta.href}>{hero.secondaryCta.label}</a>
+    </div>
+
+    <dl class="facts">
+      {hero.facts.map((fact) => (
+        <div class="fact">
+          <dt>{fact.label}</dt>
+          <dd>{fact.value}</dd>
+        </div>
+      ))}
+    </dl>
+  </div>
+</section>
+
+<script>
+  // Keep the spec tag and redlines honest: show the headline's real rendered size.
+  const headline = document.querySelector<HTMLElement>('[data-headline]');
+  const size = document.querySelector<HTMLElement>('[data-spec-size]');
+  const height = document.querySelector<HTMLElement>('[data-redline-h]');
+  const width = document.querySelector<HTMLElement>('[data-redline-w]');
+
+  if (headline) {
+    const measure = () => {
+      const style = getComputedStyle(headline);
+      const rect = headline.getBoundingClientRect();
+      if (size) size.textContent = `${Math.round(parseFloat(style.fontSize))}/${Math.round(parseFloat(style.lineHeight))}`;
+      if (height) height.textContent = String(Math.round(rect.height));
+      if (width) width.textContent = String(Math.round(rect.width));
+    };
+
+    measure();
+    new ResizeObserver(measure).observe(headline);
+    document.fonts?.ready.then(measure);
+  }
+</script>
+
+<style>
+  .hero {
+    padding-block: clamp(4.5rem, 3rem + 7vw, 9rem) var(--section-space);
+  }
+
+  /* The "selected frame" */
+  .frame {
+    position: relative;
+    width: fit-content;
+    max-width: 100%;
+    margin-top: 2.25rem;
+  }
+
+  .headline {
+    max-width: 12ch;
+    font-size: var(--step-hero);
+    line-height: calc(92 / 88);
+    font-weight: 700;
+    letter-spacing: -0.025em;
+  }
+
+  .spec {
+    position: absolute;
+    bottom: calc(100% + 10px);
+    left: -1px;
+    padding: 0.2rem 0.45rem;
+    border-radius: 3px;
+    background: var(--blue);
+    color: #fff;
+    font-size: 0.75rem;
+    font-weight: 600;
+    line-height: 1.4;
+    white-space: nowrap;
+  }
+
+  /* Redline measurements */
+  .redline {
+    position: absolute;
+    background: var(--pink);
+  }
+
+  .redline::before,
+  .redline::after {
+    content: '';
+    position: absolute;
+    background: var(--pink);
+  }
+
+  .redline-label {
+    position: absolute;
+    padding: 0.125rem 0.375rem;
+    border-radius: 3px;
+    background: var(--pink);
+    color: #fff;
+    font-size: 0.75rem;
+    font-weight: 600;
+    line-height: 1.4;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+
+  /* Vertical: measures the frame's height, to its right. */
+  .redline--v {
+    top: 0;
+    bottom: 0;
+    left: calc(100% + 2rem);
+    width: 1px;
+    transform-origin: center;
+  }
+
+  .redline--v::before,
+  .redline--v::after {
+    left: -4px;
+    width: 9px;
+    height: 1px;
+  }
+
+  .redline--v::before { top: 0; }
+  .redline--v::after { bottom: 0; }
+
+  .redline--v .redline-label {
+    top: 50%;
+    left: 0.5rem;
+    transform: translateY(-50%);
+  }
+
+  /* Horizontal: measures the frame's width, below it (small screens). */
+  .redline--h {
+    display: none;
+    left: 0;
+    right: 0;
+    top: calc(100% + 1.25rem);
+    height: 1px;
+  }
+
+  .redline--h::before,
+  .redline--h::after {
+    top: -4px;
+    width: 1px;
+    height: 9px;
+  }
+
+  .redline--h::before { left: 0; }
+  .redline--h::after { right: 0; }
+
+  .redline--h .redline-label {
+    left: 50%;
+    top: 0.375rem;
+    transform: translateX(-50%);
+  }
+
+  @media (max-width: 47.99rem) {
+    .redline--v { display: none; }
+    .redline--h { display: block; }
+    .frame { margin-bottom: 2.75rem; }
+  }
+
+  /* Load sequence, continued from SelectionBox: tag, then redline. */
+  @media (prefers-reduced-motion: no-preference) {
+    .spec {
+      animation: rise 0.3s ease-out 1.3s both;
+    }
+
+    .redline--v {
+      animation: grow-y 0.35s cubic-bezier(0.65, 0, 0.35, 1) 1.45s both;
+    }
+
+    .redline--h {
+      animation: grow-x 0.35s cubic-bezier(0.65, 0, 0.35, 1) 1.45s both;
+    }
+
+    .redline-label {
+      animation: fade 0.2s ease-out 1.75s both;
+    }
+  }
+
+  @keyframes rise {
+    from { opacity: 0; transform: translateY(4px); }
+    to { opacity: 1; transform: none; }
+  }
+
+  @keyframes grow-y {
+    from { transform: scaleY(0); }
+    to { transform: scaleY(1); }
+  }
+
+  @keyframes grow-x {
+    from { transform: scaleX(0); }
+    to { transform: scaleX(1); }
+  }
+
+  @keyframes fade {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  /* Supporting copy */
+  .intro {
+    max-width: 36rem;
+    margin-top: 2.5rem;
+    color: var(--muted);
+    font-size: var(--step-1);
+    line-height: 1.55;
+  }
+
+  .ctas {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    margin-top: 2rem;
+  }
+
+  .facts {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 1.5rem;
+    margin-top: clamp(3.5rem, 2rem + 5vw, 6rem);
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--line);
+  }
+
+  .fact dt {
+    color: var(--muted);
+    font-size: var(--step--1);
+  }
+
+  .fact dd {
+    margin-top: 0.25rem;
+    font-weight: 600;
+  }
+
+  @media (max-width: 47.99rem) {
+    .facts {
+      grid-template-columns: 1fr;
+      gap: 1rem;
+    }
+  }
+
+  @media (forced-colors: active) {
+    .spec,
+    .redline-label {
+      border: 1px solid CanvasText;
+    }
+  }
+</style>

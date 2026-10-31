@@ -1,0 +1,39 @@
+---
+import Base from '../layouts/Base.astro';
+import SelectionBox from '../components/SelectionBox.astro';
+import { person } from '../data/site';
+---
+
+<Base title={`Page not found | ${person.name}`} noindex>
+  <main id="main" class="container not-found">
+    <div class="frame">
+      <h1>Nothing on this frame.</h1>
+      <SelectionBox mode="static" inset="-0.5rem -0.75rem" />
+    </div>
+    <p>The page you are looking for has moved or never existed.</p>
+    <a class="btn btn--primary" href="/">Back to the homepage</a>
+  </main>
+</Base>
+
+<style>
+  .not-found {
+    display: grid;
+    justify-items: start;
+    align-content: center;
+    gap: 1.5rem;
+    min-height: 100vh;
+  }
+
+  .frame {
+    position: relative;
+  }
+
+  h1 {
+    font-size: var(--step-3);
+  }
+
+  p {
+    color: var(--muted);
+    font-size: var(--step-1);
+  }
+</style>

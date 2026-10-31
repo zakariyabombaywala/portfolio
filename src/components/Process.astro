@@ -1,0 +1,94 @@
+---
+import SectionHeading from './SectionHeading.astro';
+import { process } from '../data/site';
+---
+
+<section class="section process" id="process" aria-labelledby="process-title">
+  <div class="container">
+    <SectionHeading id="process-title" title={process.title} intro={process.intro} />
+
+    <ol class="steps">
+      {process.steps.map((step, i) => (
+        <li class="step">
+          <p class="count">Step {i + 1}</p>
+          <h3>{step.title}</h3>
+          <p class="body">{step.body}</p>
+          <ul class="outputs" aria-label={`What you get from ${step.title.toLowerCase()}`}>
+            {step.outputs.map((output) => <li>{output}</li>)}
+          </ul>
+        </li>
+      ))}
+    </ol>
+  </div>
+</section>
+
+<style>
+  .process {
+    background: var(--surface);
+    border-block: 1px solid var(--line);
+  }
+
+  .steps {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .step {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    padding: 0.25rem clamp(1.25rem, 0.5rem + 2vw, 2.5rem) 0.5rem;
+    border-left: 1px solid var(--line);
+  }
+
+  .step:first-child {
+    padding-left: 0;
+    border-left: 0;
+  }
+
+  .step:last-child {
+    padding-right: 0;
+  }
+
+  .count {
+    color: var(--muted);
+    font-size: var(--step--1);
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
+  }
+
+  h3 {
+    font-size: var(--step-2);
+  }
+
+  .body {
+    color: var(--muted);
+  }
+
+  .outputs {
+    margin-top: auto;
+    padding-top: 1rem;
+    font-size: 0.9375rem;
+    font-weight: 500;
+  }
+
+  .outputs li {
+    padding-block: 0.5rem;
+    border-top: 1px solid var(--line);
+  }
+
+  @media (max-width: 55.99rem) {
+    .steps {
+      grid-template-columns: 1fr;
+      gap: 2.5rem;
+    }
+
+    .step,
+    .step:first-child,
+    .step:last-child {
+      padding: 2.5rem 0 0;
+      border-left: 0;
+      border-top: 1px solid var(--line);
+    }
+  }
+</style>

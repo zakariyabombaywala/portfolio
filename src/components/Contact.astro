@@ -1,0 +1,142 @@
+---
+import { contact, person } from '../data/site';
+---
+
+<section class="section contact" id="contact" aria-labelledby="contact-title">
+  <div class="container">
+    <h2 id="contact-title">{contact.title}</h2>
+    <p class="body">{contact.body}</p>
+
+    <a class="email" href={`mailto:${person.email}`}>{person.email}</a>
+
+    <div class="actions">
+      <button
+        class="btn btn--secondary copy"
+        type="button"
+        data-copy={person.email}
+        data-copied-label={contact.copiedLabel}
+        hidden
+      >
+        <span data-copy-label>{contact.copyLabel}</span>
+      </button>
+      <a class="btn btn--primary" href={person.upwork} target="_blank" rel="noopener">
+        {contact.upworkLabel}<span class="sr-only"> (opens in a new tab)</span>
+      </a>
+      <span class="sr-only" role="status" aria-live="polite" data-copy-status></span>
+    </div>
+
+    <p class="where">{person.location}. {person.relocation}.</p>
+  </div>
+</section>
+
+<script>
+  const button = document.querySelector<HTMLButtonElement>('[data-copy]');
+  const label = document.querySelector<HTMLElement>('[data-copy-label]');
+  const status = document.querySelector<HTMLElement>('[data-copy-status]');
+
+  const fallbackCopy = (text: string) => {
+    const field = document.createElement('textarea');
+    field.value = text;
+    field.setAttribute('readonly', '');
+    field.style.position = 'fixed';
+    field.style.opacity = '0';
+    document.body.append(field);
+    field.select();
+    const ok = document.execCommand('copy');
+    field.remove();
+    return ok;
+  };
+
+  if (button && label) {
+    const original = label.textContent ?? '';
+    let timer: number | undefined;
+    button.hidden = false;
+
+    button.addEventListener('click', async () => {
+      const text = button.dataset.copy ?? '';
+      let ok = false;
+      try {
+        await navigator.clipboard.writeText(text);
+        ok = true;
+      } catch {
+        ok = fallbackCopy(text);
+      }
+
+      label.textContent = ok ? (button.dataset.copiedLabel ?? 'Copied') : 'Press Ctrl+C to copy';
+      button.classList.toggle('is-copied', ok);
+      if (status) status.textContent = ok ? 'Email address copied to clipboard' : '';
+
+      window.clearTimeout(timer);
+      timer = window.setTimeout(() => {
+        label.textContent = original;
+        button.classList.remove('is-copied');
+        if (status) status.textContent = '';
+      }, 2400);
+    });
+  }
+</script>
+
+<style>
+  .contact {
+    background: var(--surface);
+    border-top: 1px solid var(--line);
+  }
+
+  h2 {
+    max-width: 18ch;
+    font-size: var(--step-3);
+    letter-spacing: -0.02em;
+  }
+
+  .body {
+    max-width: 36rem;
+    margin-top: 1rem;
+    color: var(--muted);
+    font-size: var(--step-1);
+    line-height: 1.5;
+  }
+
+  .email {
+    display: inline-block;
+    max-width: 100%;
+    margin-top: clamp(2rem, 1.5rem + 2vw, 3rem);
+    font-size: clamp(1.375rem, 0.4rem + 4.6vw, 4.25rem);
+    font-weight: 700;
+    line-height: 1.1;
+    letter-spacing: -0.025em;
+    overflow-wrap: anywhere;
+    text-decoration-thickness: 2px;
+    text-underline-offset: 0.16em;
+    text-decoration-color: var(--line);
+  }
+
+  .email:hover {
+    text-decoration-color: var(--blue);
+  }
+
+  .actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    margin-top: 2rem;
+  }
+
+  .copy {
+    min-width: 8.5rem;
+  }
+
+  .copy[hidden] {
+    display: none;
+  }
+
+  .copy.is-copied {
+    border-color: var(--blue);
+    box-shadow: inset 0 0 0 1px var(--blue);
+  }
+
+  .where {
+    margin-top: 2.5rem;
+    color: var(--muted);
+    font-size: var(--step--1);
+  }
+</style>

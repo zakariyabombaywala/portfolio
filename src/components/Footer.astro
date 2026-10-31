@@ -1,0 +1,48 @@
+---
+import { footer, person } from '../data/site';
+
+const year = new Date().getFullYear();
+---
+
+<footer class="footer">
+  <div class="container inner">
+    <p>&copy; {year} {person.name}. {footer.note}</p>
+    <ul class="links">
+      <li><a href={`mailto:${person.email}`}>Email</a></li>
+      <li><a href={person.upwork} target="_blank" rel="noopener">Upwork<span class="sr-only"> (opens in a new tab)</span></a></li>
+      <li><a href="#top">Back to top</a></li>
+    </ul>
+  </div>
+</footer>
+
+<style>
+  .footer {
+    border-top: 1px solid var(--line);
+    color: var(--muted);
+    font-size: var(--step--1);
+  }
+
+  .inner {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem 2rem;
+    padding-block: 2rem;
+  }
+
+  .links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem 1.5rem;
+  }
+
+  a {
+    display: inline-block;
+    padding-block: 0.375rem;
+  }
+
+  a:hover {
+    color: var(--ink);
+  }
+</style>
