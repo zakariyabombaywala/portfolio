@@ -46,6 +46,14 @@ const personSchema = {
     <!-- Apply a saved theme before first paint to avoid a flash. -->
     <script is:inline>
       document.documentElement.classList.add('js');
+      // Scroll reveals: hide content only if it can be revealed again.
+      // If the reveal script never starts, show everything after 3s.
+      if ('IntersectionObserver' in window && matchMedia('(prefers-reduced-motion: no-preference)').matches) {
+        document.documentElement.classList.add('can-reveal');
+        setTimeout(() => {
+          if (!window.__revealReady) document.documentElement.classList.remove('can-reveal');
+        }, 3000);
+      }
       try {
         const saved = localStorage.getItem('theme');
         if (saved === 'light' || saved === 'dark') document.documentElement.dataset.theme = saved;
@@ -94,5 +102,24 @@ const personSchema = {
   <body id="top">
     <a class="skip-link" href="#main">Skip to content</a>
     <slot />
+
+    <script>
+      // Reveal [data-animate] elements as they scroll into view.
+      (window as Window & { __revealReady?: boolean }).__revealReady = true;
+
+      const items = document.querySelectorAll('[data-animate]');
+      const observer = new IntersectionObserver(
+        (entries) => {
+          for (const entry of entries) {
+            if (!entry.isIntersecting) continue;
+            entry.target.classList.add('is-in');
+            observer.unobserve(entry.target);
+          }
+        },
+        { rootMargin: '0px 0px -8% 0px', threshold: 0.12 },
+      );
+
+      items.forEach((item) => observer.observe(item));
+    </script>
   </body>
 </html>

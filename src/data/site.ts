@@ -35,11 +35,26 @@ export const nav = [
 ];
 
 export const hero = {
-  /** The headline shown inside the "selected frame". */
-  headline: 'I turn Figma frames into fast, accessible websites.',
+  /**
+   * The headline shown inside the "selected frame".
+   * Words between *asterisks* get the highlighted "selected text" treatment.
+   */
+  headline: 'I turn *Figma frames* into fast, accessible websites.',
   /** Label in the blue spec tag. Size and line height are measured live in the browser. */
   specLayer: 'Heading',
-  specFont: 'Schibsted Grotesk Bold',
+  specFont: 'Schibsted Grotesk ExtraBold',
+  /** Status line at the bottom of the specs panel. */
+  status: 'Available for freelance projects',
+  /** The Figma-style panel beside the headline. Its values update live. */
+  panel: {
+    label: 'Headline specs',
+    designTab: 'Design',
+    codeTab: 'Code',
+    copyCss: 'Copy CSS',
+    copied: 'Copied',
+  },
+  /** Cursor-chat hint beside the frame. Visitors can drag the frame's edge to resize it. */
+  resizeHint: 'Drag to resize',
   intro:
     'Front-end tech lead at EnactOn Technologies. I build marketing sites and product interfaces in React, Astro and WordPress, and lead the developers who ship them.',
   primaryCta: { label: 'See selected work', href: '#work' },
@@ -51,66 +66,134 @@ export const hero = {
   ],
 };
 
+export type ProjectCategory = 'migration' | 'astro' | 'wordpress';
+
 export interface Project {
   title: string;
-  /** Kind of project, e.g. "Marketing site" or "WordPress theme". */
+  category: ProjectCategory;
+  /** What the site does, shown above the title. */
   type: string;
-  year: string;
   summary: string;
   stack: string[];
   /** Live URL. Leave empty to show the row without a link. */
   url?: string;
+  /** Optional year, e.g. "2025". */
+  year?: string;
   /** Screenshot path inside /public, e.g. "/work/acme.webp" (16:10 works best). */
   image?: string;
   imageAlt?: string;
-  /** Set to false once you have replaced this entry with a real project. */
-  placeholder?: boolean;
 }
 
 export const work = {
   title: 'Selected work',
   intro:
-    'A few recent builds. Each one started as a design file and shipped as a fast, maintainable site.',
+    'Live sites for telehealth and consumer brands, including four WordPress sites rebuilt in Astro for speed.',
+  /** Filter buttons above the list. Order here is the order shown. */
+  categories: {
+    migration: 'WordPress to Astro',
+    astro: 'Built with Astro',
+    wordpress: 'WordPress',
+  } satisfies Record<ProjectCategory, string>,
+  allLabel: 'All',
   projects: [
     {
-      title: 'Project one',
-      type: 'Marketing site',
-      year: '2026',
+      title: 'ParkingMD',
+      category: 'migration',
+      type: 'Telehealth, handicap parking permits',
       summary:
-        'Placeholder. Replace with one line on what you built, who it was for and the result, e.g. a Lighthouse score or conversion change.',
-      stack: ['Astro', 'Islands', 'SEO'],
-      url: '',
-      placeholder: true,
+        'Patients get a handicap parking permit evaluation online from licensed providers. Migrated from WordPress to Astro.',
+      stack: ['Astro', 'Island architecture', 'On-page SEO'],
+      url: 'https://parkingmd.com/',
+      image: '/work/parkingmd.webp',
+      imageAlt: 'ParkingMD homepage',
     },
     {
-      title: 'Project two',
-      type: 'WordPress custom theme',
-      year: '2025',
+      title: 'FMLADocs',
+      category: 'migration',
+      type: 'Telehealth, FMLA paperwork',
       summary:
-        'Placeholder. Describe the theme, the editing experience you set up for the client and anything custom in PHP or JS.',
-      stack: ['WordPress', 'PHP', 'JavaScript'],
-      url: '',
-      placeholder: true,
+        'Board-certified telehealth doctors complete FMLA certification paperwork online. Migrated from WordPress to Astro.',
+      stack: ['Astro', 'Island architecture', 'On-page SEO'],
+      url: 'https://fmladocs.com/',
+      image: '/work/fmladocs.webp',
+      imageAlt: 'FMLADocs homepage',
     },
     {
-      title: 'Project three',
-      type: 'Web app interface',
-      year: '2025',
+      title: 'TintedMD',
+      category: 'migration',
+      type: 'Telehealth, vehicle tint exemptions',
       summary:
-        'Placeholder. Summarise the React interface, the components you built from the Figma file and how it performs.',
-      stack: ['React', 'SCSS', 'Figma'],
-      url: '',
-      placeholder: true,
+        'Drivers qualify for a medical window-tint exemption based on their condition. Migrated from WordPress to Astro.',
+      stack: ['Astro', 'Island architecture', 'On-page SEO'],
+      url: 'https://tintedmd.com/',
+      image: '/work/tintedmd.webp',
+      imageAlt: 'TintedMD homepage',
     },
     {
-      title: 'Project four',
-      type: 'Landing pages',
-      year: '2024',
+      title: 'LeafyRx',
+      category: 'migration',
+      type: 'Telehealth, medical marijuana cards',
       summary:
-        'Placeholder. A set of campaign pages built from a shared design system. Mention speed, reuse or launch timeline.',
-      stack: ['Bricks', 'Tailwind CSS', 'Core Web Vitals'],
-      url: '',
-      placeholder: true,
+        'Patients connect with licensed providers online for evaluations and state-approved certifications. Migrated from WordPress to Astro.',
+      stack: ['Astro', 'Island architecture', 'On-page SEO'],
+      url: 'https://leafyrx.org/',
+      image: '/work/leafyrx.webp',
+      imageAlt: 'LeafyRx homepage',
+    },
+    {
+      title: 'HouseMaxxing',
+      category: 'astro',
+      type: 'Property tax appeals',
+      summary:
+        'Homeowners check their property tax savings in under a minute and the team files the appeal. Built from scratch in Astro.',
+      stack: ['Astro', 'JavaScript', 'Responsive layout'],
+      url: 'https://myhousemaxxing.com/',
+      image: '/work/myhousemaxxing.webp',
+      imageAlt: 'HouseMaxxing homepage',
+    },
+    {
+      title: 'GetMyDoctorNote',
+      category: 'astro',
+      type: 'Telehealth, doctor’s notes',
+      summary:
+        'Physician-signed doctor’s notes for work or school, requested fully online. Built from scratch in Astro.',
+      stack: ['Astro', 'JavaScript', 'On-page SEO'],
+      url: 'https://getmydoctornote.com/',
+      image: '/work/getmydoctornote.webp',
+      imageAlt: 'GetMyDoctorNote homepage',
+    },
+    {
+      title: 'Minimal',
+      category: 'wordpress',
+      type: 'Telehealth, weight management',
+      summary:
+        'Personalised, doctor-approved weight management programmes, with a shop and treatment pages. Built on WordPress.',
+      stack: ['WordPress', 'Custom theme', 'JavaScript'],
+      url: 'https://joinminimal.com/',
+      image: '/work/joinminimal.webp',
+      imageAlt: 'Minimal homepage',
+    },
+    {
+      title: 'Wellness Wag',
+      category: 'wordpress',
+      type: 'Telehealth, ESA letters',
+      summary:
+        'Emotional support animal letters from licensed therapists after a clinical evaluation. Built on WordPress.',
+      stack: ['WordPress', 'Custom theme', 'JavaScript'],
+      url: 'https://wellnesswag.com/',
+      image: '/work/wellnesswag.webp',
+      imageAlt: 'Wellness Wag homepage',
+    },
+    {
+      title: 'Leafy DOC',
+      category: 'wordpress',
+      type: 'Telehealth, medical marijuana cards',
+      summary:
+        'Patients apply for a medical marijuana card online with licensed doctors and same-day certification. Built on WordPress.',
+      stack: ['WordPress', 'Custom theme', 'JavaScript'],
+      url: 'https://leafydoc.com/',
+      image: '/work/leafydoc.webp',
+      imageAlt: 'Leafy DOC homepage',
     },
   ] as Project[],
 };
@@ -235,6 +318,15 @@ export const contact = {
   copyLabel: 'Copy email',
   copiedLabel: 'Copied',
   upworkLabel: 'Hire me on Upwork',
+};
+
+/** Inspect mode: the header toggle that shows the specs of anything you hover. */
+export const inspect = {
+  toggleLabel: 'Inspect',
+  barText: 'Inspect mode. Hover, tap or tab to anything to see its specs.',
+  exitLabel: 'Exit',
+  onAnnouncement: 'Inspect mode on. Move focus to see each element’s specs. Press Escape to exit.',
+  offAnnouncement: 'Inspect mode off.',
 };
 
 export const footer = {

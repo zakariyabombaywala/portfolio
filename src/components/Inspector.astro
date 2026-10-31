@@ -1,0 +1,244 @@
+---
+/**
+ * Inspect mode: turns the page into Figma's inspect view. When the header
+ * toggle is on, hovering, tapping or tabbing to anything selects it and shows
+ * its layer name, type specs and size.
+ */
+import SelectionBox from './SelectionBox.astro';
+import { inspect } from '../data/site';
+---
+
+<div class="inspector" data-inspector hidden aria-hidden="true">
+  <div class="box" data-inspect-box>
+    <SelectionBox />
+    <span class="name" data-inspect-name></span>
+    <span class="size" data-inspect-size></span>
+  </div>
+</div>
+
+<div class="bar" data-inspect-bar data-inspect-ignore hidden>
+  <p>{inspect.barText}</p>
+  <button class="btn btn--secondary exit" type="button" data-inspect-exit>{inspect.exitLabel}</button>
+</div>
+
+<p
+  class="sr-only"
+  role="status"
+  data-inspect-status
+  data-on={inspect.onAnnouncement}
+  data-off={inspect.offAnnouncement}>
+</p>
+
+<script>
+  const toggles = document.querySelectorAll<HTMLButtonElement>('[data-inspect-toggle]');
+  const overlay = document.querySelector<HTMLElement>('[data-inspector]');
+  const box = document.querySelector<HTMLElement>('[data-inspect-box]');
+  const name = document.querySelector<HTMLElement>('[data-inspect-name]');
+  const size = document.querySelector<HTMLElement>('[data-inspect-size]');
+  const bar = document.querySelector<HTMLElement>('[data-inspect-bar]');
+  const exit = document.querySelector<HTMLButtonElement>('[data-inspect-exit]');
+  const status = document.querySelector<HTMLElement>('[data-inspect-status]');
+
+  const layerNames: Record<string, string> = {
+    H1: 'Heading 1',
+    H2: 'Heading 2',
+    H3: 'Heading 3',
+    P: 'Text',
+    A: 'Link',
+    BUTTON: 'Button',
+    LI: 'List item',
+    UL: 'List',
+    OL: 'List',
+    DL: 'List',
+    DT: 'Label',
+    DD: 'Value',
+    IMG: 'Image',
+    svg: 'Icon',
+    SECTION: 'Section',
+    HEADER: 'Header',
+    FOOTER: 'Footer',
+    NAV: 'Navigation',
+    ASIDE: 'Frame',
+    TIME: 'Date',
+    MARK: 'Text',
+    PRE: 'Code',
+    CODE: 'Code',
+    SPAN: 'Text',
+    DIV: 'Frame',
+  };
+
+  const weightNames: Record<string, string> = {
+    '400': 'Regular',
+    '500': 'Medium',
+    '600': 'SemiBold',
+    '700': 'Bold',
+    '800': 'ExtraBold',
+    '900': 'Black',
+  };
+
+  const hasOwnText = (el: Element) =>
+    Array.from(el.childNodes).some((node) => node.nodeType === Node.TEXT_NODE && node.textContent?.trim());
+
+  const describe = (el: Element) => {
+    const layer = layerNames[el.tagName] ?? 'Frame';
+    if (!hasOwnText(el)) return layer;
+    const style = getComputedStyle(el);
+    const fontSize = parseFloat(style.fontSize);
+    const lineHeight = parseFloat(style.lineHeight) || fontSize * 1.2;
+    const weight = weightNames[style.fontWeight] ?? style.fontWeight;
+    return `${layer}, ${Math.round(fontSize)}/${Math.round(lineHeight)}, ${weight}`;
+  };
+
+  let active = false;
+  let current: Element | null = null;
+  let frame = 0;
+
+  const draw = () => {
+    frame = 0;
+    if (!box || !current || !current.isConnected) {
+      if (box) box.hidden = true;
+      return;
+    }
+    const rect = current.getBoundingClientRect();
+    box.hidden = false;
+    box.style.transform = `translate(${rect.left}px, ${rect.top}px)`;
+    box.style.width = `${rect.width}px`;
+    box.style.height = `${rect.height}px`;
+    // Keep the name tag on screen when the element touches the top edge.
+    box.classList.toggle('name-below', rect.top < 32);
+    if (name) name.textContent = describe(current);
+    if (size) size.textContent = `${Math.round(rect.width)} × ${Math.round(rect.height)}`;
+  };
+
+  const schedule = () => {
+    if (!frame) frame = requestAnimationFrame(draw);
+  };
+
+  const select = (target: EventTarget | null) => {
+    if (!(target instanceof Element)) return;
+    let el: Element | null = target.closest('svg') ?? target;
+    if (el.closest('[data-inspect-ignore]') || el === document.body || el === document.documentElement) el = null;
+    if (el === current) return;
+    current = el;
+    schedule();
+  };
+
+  const setActive = (on: boolean) => {
+    active = on;
+    current = null;
+    toggles.forEach((toggle) => toggle.setAttribute('aria-pressed', String(on)));
+    if (overlay) overlay.hidden = !on;
+    if (bar) bar.hidden = !on;
+    if (box) box.hidden = true;
+    document.documentElement.classList.toggle('is-inspecting', on);
+    if (status) status.textContent = (on ? status.dataset.on : status.dataset.off) ?? '';
+  };
+
+  toggles.forEach((toggle) => {
+    toggle.hidden = false;
+    toggle.addEventListener('click', () => setActive(!active));
+  });
+
+  exit?.addEventListener('click', () => {
+    setActive(false);
+    toggles[0]?.focus();
+  });
+
+  document.addEventListener('pointerover', (event) => active && select(event.target));
+  document.addEventListener('pointerdown', (event) => active && select(event.target));
+  document.addEventListener('focusin', (event) => active && select(event.target));
+  document.addEventListener('scroll', () => active && schedule(), { passive: true });
+  window.addEventListener('resize', () => active && schedule());
+
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && active) setActive(false);
+  });
+</script>
+
+<style>
+  .inspector {
+    position: fixed;
+    inset: 0;
+    z-index: 60;
+    pointer-events: none;
+  }
+
+  .box {
+    position: absolute;
+    top: 0;
+    left: 0;
+  }
+
+  .box[hidden] {
+    display: none;
+  }
+
+  .name,
+  .size {
+    position: absolute;
+    padding: 0.125rem 0.375rem;
+    border-radius: 3px;
+    background: var(--blue);
+    color: #fff;
+    font-size: 0.75rem;
+    font-weight: 600;
+    line-height: 1.4;
+    white-space: nowrap;
+  }
+
+  .name {
+    bottom: calc(100% + 6px);
+    left: -1px;
+  }
+
+  .box.name-below .name {
+    bottom: auto;
+    top: calc(100% + 28px);
+  }
+
+  .size {
+    top: calc(100% + 6px);
+    left: 50%;
+    transform: translateX(-50%);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .bar {
+    position: fixed;
+    left: 50%;
+    bottom: 1rem;
+    z-index: 61;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    width: max-content;
+    max-width: calc(100% - 2rem);
+    padding: 0.5rem 0.5rem 0.5rem 1rem;
+    transform: translateX(-50%);
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    box-shadow: 0 8px 24px rgb(0 0 0 / 0.12);
+    font-size: var(--step--1);
+  }
+
+  .bar[hidden] {
+    display: none;
+  }
+
+  .exit {
+    min-height: 2.25rem;
+    padding-block: 0.375rem;
+  }
+
+  :global(html.is-inspecting) {
+    cursor: default;
+  }
+
+  @media (forced-colors: active) {
+    .name,
+    .size {
+      border: 1px solid CanvasText;
+    }
+  }
+</style>

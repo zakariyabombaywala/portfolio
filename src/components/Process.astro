@@ -9,7 +9,7 @@ import { process } from '../data/site';
 
     <ol class="steps">
       {process.steps.map((step, i) => (
-        <li class="step">
+        <li class="step" data-animate style={`--delay: ${i * 120}ms`}>
           <p class="count">Step {i + 1}</p>
           <h3>{step.title}</h3>
           <p class="body">{step.body}</p>

@@ -8,8 +8,8 @@ import { skills } from '../data/site';
     <SectionHeading id="skills-title" title={skills.title} />
 
     <div class="groups">
-      {skills.groups.map((group) => (
-        <div class="group">
+      {skills.groups.map((group, i) => (
+        <div class="group" data-animate style={`--delay: ${(i % 4) * 80}ms`}>
           <h3>{group.name}</h3>
           <ul>
             {group.items.map((item) => <li>{item}</li>)}

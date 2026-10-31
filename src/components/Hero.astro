@@ -1,33 +1,67 @@
 ---
 import SelectionBox from './SelectionBox.astro';
+import HeroPanel from './HeroPanel.astro';
 import { hero } from '../data/site';
+
+// Odd-numbered parts were wrapped in *asterisks* in site.ts and get highlighted.
+const headlineParts = hero.headline.split('*');
 ---
 
 <section class="hero" aria-labelledby="hero-title">
+  <div class="container layout">
+    <div class="main">
+      <div class="frame" data-frame>
+        <p class="spec" aria-hidden="true">{hero.specLayer}, <span data-spec-size>96/91</span>, {hero.specFont}</p>
+
+        <h1 id="hero-title" class="headline" data-headline>
+          {headlineParts.map((part, i) =>
+            i % 2 === 1 ? (
+              <><mark class="hl">{part}</mark><span class="caret" aria-hidden="true" /></>
+            ) : (
+              part
+            ),
+          )}
+        </h1>
+
+        <SelectionBox mode="draw" />
+
+        <span class="redline redline--v" aria-hidden="true">
+          <span class="redline-label" data-redline-h>184</span>
+        </span>
+        <span class="redline redline--h" aria-hidden="true">
+          <span class="redline-label" data-redline-w>320</span>
+        </span>
+
+        <span
+          class="grip"
+          role="slider"
+          tabindex="0"
+          aria-label="Headline frame width"
+          aria-orientation="horizontal"
+          data-grip
+          hidden></span>
+
+        <span class="cursor" aria-hidden="true" data-cursor hidden>
+          <svg viewBox="0 0 16 20" width="16" height="20">
+            <path d="M1 1v15.5l4.3-4.1 2.9 6.6 2.6-1.1-2.8-6.5H14L1 1Z" fill="var(--pink)" stroke="#fff" stroke-width="1.2" stroke-linejoin="round"></path>
+          </svg>
+          <span class="bubble">{hero.resizeHint}</span>
+        </span>
+      </div>
+
+      <p class="intro enter" style="--enter-delay: 0.3s">{hero.intro}</p>
+
+      <div class="ctas enter" style="--enter-delay: 0.42s">
+        <a class="btn btn--primary" href={hero.primaryCta.href}>{hero.primaryCta.label}</a>
+        <a class="btn btn--secondary" href={hero.secondaryCta.href}>{hero.secondaryCta.label}</a>
+      </div>
+    </div>
+
+    <HeroPanel />
+  </div>
+
   <div class="container">
-    <div class="frame" data-frame>
-      <p class="spec" aria-hidden="true">{hero.specLayer}, <span data-spec-size>88/92</span>, {hero.specFont}</p>
-
-      <h1 id="hero-title" class="headline" data-headline>{hero.headline}</h1>
-
-      <SelectionBox mode="draw" />
-
-      <span class="redline redline--v" aria-hidden="true">
-        <span class="redline-label" data-redline-h>184</span>
-      </span>
-      <span class="redline redline--h" aria-hidden="true">
-        <span class="redline-label" data-redline-w>320</span>
-      </span>
-    </div>
-
-    <p class="intro">{hero.intro}</p>
-
-    <div class="ctas">
-      <a class="btn btn--primary" href={hero.primaryCta.href}>{hero.primaryCta.label}</a>
-      <a class="btn btn--secondary" href={hero.secondaryCta.href}>{hero.secondaryCta.label}</a>
-    </div>
-
-    <dl class="facts">
+    <dl class="facts enter" style="--enter-delay: 0.65s">
       {hero.facts.map((fact) => (
         <div class="fact">
           <dt>{fact.label}</dt>
@@ -39,30 +73,179 @@ import { hero } from '../data/site';
 </section>
 
 <script>
-  // Keep the spec tag and redlines honest: show the headline's real rendered size.
+  import { publish, toHex } from '../scripts/headline-specs';
+
+  // Keep the spec tag, redlines and specs panel honest: show the headline's real rendered size.
   const headline = document.querySelector<HTMLElement>('[data-headline]');
   const size = document.querySelector<HTMLElement>('[data-spec-size]');
   const height = document.querySelector<HTMLElement>('[data-redline-h]');
   const width = document.querySelector<HTMLElement>('[data-redline-w]');
 
-  if (headline) {
+  const frame = document.querySelector<HTMLElement>('[data-frame]');
+  const grip = document.querySelector<HTMLElement>('[data-grip]');
+  const cursor = document.querySelector<HTMLElement>('[data-cursor]');
+
+  if (headline && frame) {
     const measure = () => {
       const style = getComputedStyle(headline);
       const rect = headline.getBoundingClientRect();
-      if (size) size.textContent = `${Math.round(parseFloat(style.fontSize))}/${Math.round(parseFloat(style.lineHeight))}`;
-      if (height) height.textContent = String(Math.round(rect.height));
-      if (width) width.textContent = String(Math.round(rect.width));
+      const fontSize = parseFloat(style.fontSize);
+      const specs = {
+        width: Math.round(rect.width),
+        height: Math.round(rect.height),
+        fontSize: Math.round(fontSize),
+        lineHeight: Math.round(parseFloat(style.lineHeight) || fontSize * 1.2),
+        fontWeight: style.fontWeight,
+        letterSpacing: (parseFloat(style.letterSpacing) || 0) / fontSize,
+        color: toHex(style.color),
+      };
+
+      if (size) size.textContent = `${specs.fontSize}/${specs.lineHeight}`;
+      if (height) height.textContent = String(specs.height);
+      if (width) width.textContent = String(specs.width);
+      if (grip) {
+        grip.setAttribute('aria-valuenow', String(specs.width));
+        grip.setAttribute('aria-valuetext', `${specs.width} pixels wide`);
+      }
+      publish(specs);
     };
 
     measure();
     new ResizeObserver(measure).observe(headline);
     document.fonts?.ready.then(measure);
+    // The fill colour changes with the theme.
+    new MutationObserver(measure).observe(document.documentElement, { attributeFilter: ['data-theme'] });
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', measure);
+
+    // Resizable frame: drag the right edge, or focus it and use the arrow keys.
+    if (grip) {
+      grip.hidden = false;
+      if (cursor) cursor.hidden = false;
+
+      const column = frame.parentElement as HTMLElement;
+      type Limits = { min: number; max: number };
+
+      // Narrowest: the longest word still fits. Widest: the column, minus room for the redline.
+      const limits = (): Limits => {
+        const max = Math.round(column.clientWidth - (window.matchMedia('(min-width: 48rem)').matches ? 120 : 0));
+
+        const { width, maxWidth } = headline.style;
+        headline.style.width = 'min-content';
+        headline.style.maxWidth = 'none';
+        const minContent = Math.ceil(headline.getBoundingClientRect().width);
+        headline.style.width = width;
+        headline.style.maxWidth = maxWidth;
+
+        return { min: Math.min(max, minContent), max };
+      };
+
+      const syncLimits = (bounds: Limits = limits()) => {
+        grip.setAttribute('aria-valuemin', String(bounds.min));
+        grip.setAttribute('aria-valuemax', String(bounds.max));
+        return bounds;
+      };
+
+      const setWidth = (value: number, bounds: Limits = syncLimits()) => {
+        const next = Math.min(bounds.max, Math.max(bounds.min, Math.round(value)));
+        headline.style.width = `${next}px`;
+        headline.style.maxWidth = 'none';
+      };
+
+      const reset = () => {
+        headline.style.removeProperty('width');
+        headline.style.removeProperty('max-width');
+      };
+
+      const dismissHint = () => cursor?.classList.add('is-dismissed');
+
+      syncLimits();
+      document.fonts?.ready.then(() => syncLimits());
+
+      let startX = 0;
+      let startWidth = 0;
+      let dragBounds: Limits = { min: 0, max: 0 };
+
+      grip.addEventListener('pointerdown', (event) => {
+        event.preventDefault();
+        grip.setPointerCapture(event.pointerId);
+        startX = event.clientX;
+        startWidth = headline.getBoundingClientRect().width;
+        // Measure once per drag, not on every pointer move.
+        dragBounds = syncLimits();
+        frame.classList.add('is-resizing');
+        dismissHint();
+      });
+
+      grip.addEventListener('pointermove', (event) => {
+        if (!grip.hasPointerCapture(event.pointerId)) return;
+        setWidth(startWidth + event.clientX - startX, dragBounds);
+      });
+
+      const endDrag = (event: PointerEvent) => {
+        if (grip.hasPointerCapture(event.pointerId)) grip.releasePointerCapture(event.pointerId);
+        frame.classList.remove('is-resizing');
+      };
+
+      grip.addEventListener('pointerup', endDrag);
+      grip.addEventListener('pointercancel', endDrag);
+      grip.addEventListener('dblclick', reset);
+
+      grip.addEventListener('keydown', (event) => {
+        const current = headline.getBoundingClientRect().width;
+        const step = event.shiftKey ? 64 : 16;
+        const bounds = syncLimits();
+        const keys: Record<string, number> = {
+          ArrowRight: current + step,
+          ArrowUp: current + step,
+          ArrowLeft: current - step,
+          ArrowDown: current - step,
+          Home: bounds.min,
+          End: bounds.max,
+        };
+        if (event.key === 'Escape') {
+          reset();
+        } else if (event.key in keys) {
+          setWidth(keys[event.key], bounds);
+        } else {
+          return;
+        }
+        event.preventDefault();
+        dismissHint();
+      });
+
+      // Keep a custom width inside the layout when the window changes size.
+      window.addEventListener('resize', () => {
+        if (headline.style.width) setWidth(parseFloat(headline.style.width));
+        else syncLimits();
+      });
+    }
   }
 </script>
 
 <style>
   .hero {
-    padding-block: clamp(4.5rem, 3rem + 7vw, 9rem) var(--section-space);
+    padding-block: clamp(2.5rem, 1rem + 3.5vw, 4.5rem) var(--section-space);
+  }
+
+  .layout {
+    display: grid;
+    gap: clamp(2.5rem, 1rem + 3vw, 4rem);
+  }
+
+  /* Headline column beside the specs panel on wide screens. */
+  @media (min-width: 64rem) {
+    .layout {
+      grid-template-columns: minmax(0, 1fr) 18.5rem;
+      align-items: start;
+    }
+
+    .layout > :global(.panel) {
+      margin-top: 2.25rem;
+    }
+  }
+
+  .main {
+    min-width: 0;
   }
 
   /* The "selected frame" */
@@ -73,12 +256,68 @@ import { hero } from '../data/site';
     margin-top: 2.25rem;
   }
 
+  /* Leave room for the vertical redline beside the frame. */
+  @media (min-width: 48rem) {
+    .frame {
+      max-width: calc(100% - 7.5rem);
+    }
+  }
+
   .headline {
-    max-width: 12ch;
+    max-width: 13ch;
     font-size: var(--step-hero);
-    line-height: calc(92 / 88);
-    font-weight: 700;
-    letter-spacing: -0.025em;
+    line-height: 0.95;
+    font-weight: 800;
+    letter-spacing: -0.04em;
+  }
+
+  /* "Selected text" highlight, as when editing a text layer in Figma. */
+  .hl {
+    --hl: color-mix(in srgb, var(--blue) 26%, transparent);
+    color: inherit;
+    padding-inline: 0.03em;
+    margin-inline: -0.03em;
+    background: linear-gradient(var(--hl), var(--hl)) no-repeat left 62% / 100% 72%;
+    -webkit-box-decoration-break: clone;
+    box-decoration-break: clone;
+  }
+
+  /* Text cursor after the highlight: zero width so it never changes the wrapping. */
+  .caret {
+    position: relative;
+    display: inline-block;
+    width: 0;
+  }
+
+  .caret::after {
+    content: '';
+    position: absolute;
+    left: 0.02em;
+    bottom: -0.16em;
+    width: 0.045em;
+    height: 0.92em;
+    background: var(--blue);
+    opacity: 0;
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .hl {
+      animation: highlight 0.5s cubic-bezier(0.65, 0, 0.35, 1) 1.5s both;
+    }
+
+    .caret::after {
+      animation: blink 1s steps(1) 2s 4;
+    }
+  }
+
+  @keyframes highlight {
+    from { background-size: 0% 72%; }
+    to { background-size: 100% 72%; }
+  }
+
+  @keyframes blink {
+    0%, 49% { opacity: 1; }
+    50%, 100% { opacity: 0; }
   }
 
   .spec {
@@ -216,10 +455,109 @@ import { hero } from '../data/site';
     to { opacity: 1; }
   }
 
+  /* Resize grip along the frame's right edge */
+  .grip {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    right: -12px;
+    z-index: 2;
+    width: 24px;
+    cursor: ew-resize;
+    touch-action: none;
+  }
+
+  .grip[hidden] {
+    display: none;
+  }
+
+  .grip::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 50%;
+    width: 2px;
+    transform: translateX(-50%);
+    background: var(--blue);
+    opacity: 0;
+  }
+
+  .grip:hover::before,
+  .grip:focus-visible::before,
+  .frame.is-resizing .grip::before {
+    opacity: 1;
+  }
+
+  .grip:focus-visible {
+    outline: 2px solid var(--focus);
+    outline-offset: 0;
+  }
+
+  .frame.is-resizing {
+    user-select: none;
+  }
+
+  /* Cursor chat hint, pointing at the bottom-right handle */
+  .cursor {
+    position: absolute;
+    top: calc(100% + 2px);
+    left: calc(100% + 2px);
+    z-index: 3;
+    display: none;
+    align-items: flex-start;
+    gap: 0.125rem;
+    pointer-events: none;
+    transition: opacity 0.2s ease-out;
+  }
+
+  .cursor svg {
+    flex: none;
+    filter: drop-shadow(0 1px 1px rgb(0 0 0 / 0.2));
+  }
+
+  .bubble {
+    margin-top: 0.75rem;
+    padding: 0.25rem 0.625rem;
+    border-radius: 0 0.75rem 0.75rem 0.75rem;
+    background: var(--pink);
+    color: #fff;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    line-height: 1.4;
+    white-space: nowrap;
+  }
+
+  .cursor.is-dismissed {
+    opacity: 0;
+  }
+
+  /* Only where there is a precise pointer and room beside the frame. */
+  @media (hover: hover) and (pointer: fine) and (min-width: 48rem) {
+    .cursor:not([hidden]) {
+      display: flex;
+    }
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .cursor:not(.is-dismissed) {
+      animation: cursor-in 0.6s cubic-bezier(0.22, 1, 0.36, 1) 2s both;
+    }
+
+    .bubble {
+      animation: fade 0.2s ease-out 2.55s both;
+    }
+  }
+
+  @keyframes cursor-in {
+    from { opacity: 0; transform: translate(4rem, 2.5rem); }
+    to { opacity: 1; transform: none; }
+  }
+
   /* Supporting copy */
   .intro {
     max-width: 36rem;
-    margin-top: 2.5rem;
+    margin-top: 2.25rem;
     color: var(--muted);
     font-size: var(--step-1);
     line-height: 1.55;
@@ -236,7 +574,7 @@ import { hero } from '../data/site';
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 1.5rem;
-    margin-top: clamp(3.5rem, 2rem + 5vw, 6rem);
+    margin-top: clamp(3rem, 2rem + 3vw, 4.5rem);
     padding-top: 1.5rem;
     border-top: 1px solid var(--line);
   }

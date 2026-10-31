@@ -17,7 +17,7 @@ const toDatetime = (label: string) => {
 
       <ol class="timeline">
         {experience.roles.map((item, i) => (
-          <li class:list={['entry', { 'entry--current': i === 0 }]}>
+          <li class:list={['entry', { 'entry--current': i === 0 }]} data-animate>
             <span class="marker" aria-hidden="true"></span>
             <p class="dates">
               <time datetime={toDatetime(item.start)}>{item.start}</time>
@@ -35,7 +35,7 @@ const toDatetime = (label: string) => {
       </ol>
     </div>
 
-    <aside class="education" aria-labelledby="education-title">
+    <aside class="education" aria-labelledby="education-title" data-animate style="--delay: 150ms">
       <h3 id="education-title" class="education-title">{experience.educationTitle}</h3>
       <ul>
         {experience.education.map((item) => (
@@ -63,9 +63,48 @@ const toDatetime = (label: string) => {
     margin-left: 4px;
   }
 
+  /* The timeline fills with blue as you scroll through it (where supported). */
+  @supports (animation-timeline: view()) {
+    @media (prefers-reduced-motion: no-preference) {
+      .timeline::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        left: -1px;
+        width: 1px;
+        background: var(--blue);
+        transform-origin: top;
+        animation: fill-line linear both;
+        animation-timeline: view();
+        animation-range: entry 30% cover 65%;
+      }
+    }
+  }
+
+  @keyframes fill-line {
+    from { transform: scaleY(0); }
+    to { transform: scaleY(1); }
+  }
+
   .entry {
     position: relative;
     padding: 0 0 3rem 2rem;
+  }
+
+  /* Each marker turns into a selected handle as its entry arrives. */
+  :global(.can-reveal) .marker {
+    transition:
+      border-color 0.3s ease 0.35s,
+      transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) 0.35s;
+  }
+
+  :global(.can-reveal) .entry:not(.is-in) .marker {
+    transform: scale(0);
+  }
+
+  :global(.can-reveal) .entry.is-in .marker {
+    border-color: var(--blue);
   }
 
   .entry:last-child {

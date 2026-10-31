@@ -4,12 +4,12 @@ import { contact, person } from '../data/site';
 
 <section class="section contact" id="contact" aria-labelledby="contact-title">
   <div class="container">
-    <h2 id="contact-title">{contact.title}</h2>
-    <p class="body">{contact.body}</p>
+    <h2 id="contact-title" data-animate>{contact.title}</h2>
+    <p class="body" data-animate style="--delay: 100ms">{contact.body}</p>
 
-    <a class="email" href={`mailto:${person.email}`}>{person.email}</a>
+    <a class="email" href={`mailto:${person.email}`} data-animate style="--delay: 200ms">{person.email}</a>
 
-    <div class="actions">
+    <div class="actions" data-animate style="--delay: 300ms">
       <button
         class="btn btn--secondary copy"
         type="button"

@@ -1,5 +1,5 @@
 ---
-import { nav, person, contact } from '../data/site';
+import { nav, person, contact, inspect } from '../data/site';
 ---
 
 <header class="header">
@@ -24,6 +24,16 @@ import { nav, person, contact } from '../data/site';
             </li>
           ))}
         </ul>
+        <button
+          class="btn btn--secondary menu-inspect"
+          type="button"
+          aria-pressed="false"
+          data-inspect-toggle
+          data-inspect-ignore
+          hidden
+        >
+          {inspect.toggleLabel} mode
+        </button>
         <a class="btn btn--primary menu-cta" href={person.upwork} target="_blank" rel="noopener">
           {contact.upworkLabel}<span class="sr-only"> (opens in a new tab)</span>
         </a>
@@ -31,7 +41,28 @@ import { nav, person, contact } from '../data/site';
     </nav>
 
     <div class="actions">
-      <button class="theme-btn" type="button" data-theme-toggle hidden>
+      <button
+        class="icon-btn inspect-btn"
+        type="button"
+        aria-pressed="false"
+        aria-label={`${inspect.toggleLabel} mode`}
+        title="Inspect mode: see the specs of anything you hover"
+        data-inspect-toggle
+        data-inspect-ignore
+        hidden
+      >
+        <svg viewBox="0 0 20 20" width="18" height="18" aria-hidden="true">
+          <rect x="4" y="4" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.4"></rect>
+          <g fill="var(--surface)" stroke="currentColor" stroke-width="1.4">
+            <rect x="2" y="2" width="4" height="4"></rect>
+            <rect x="14" y="2" width="4" height="4"></rect>
+            <rect x="14" y="14" width="4" height="4"></rect>
+            <rect x="2" y="14" width="4" height="4"></rect>
+          </g>
+        </svg>
+        <span class="inspect-label">{inspect.toggleLabel}</span>
+      </button>
+      <button class="icon-btn theme-btn" type="button" data-theme-toggle hidden>
         <svg class="icon icon--moon" viewBox="0 0 20 20" width="18" height="18" aria-hidden="true">
           <path
             d="M16.5 12.4A7 7 0 0 1 7.6 3.5a7 7 0 1 0 8.9 8.9Z"
@@ -101,7 +132,7 @@ import { nav, person, contact } from '../data/site';
     });
 
     menu.addEventListener('click', (event) => {
-      if ((event.target as HTMLElement).closest('a')) setOpen(false);
+      if ((event.target as HTMLElement).closest('a, [data-inspect-toggle]')) setOpen(false);
     });
 
     document.addEventListener('keydown', (event) => {
@@ -112,6 +143,29 @@ import { nav, person, contact } from '../data/site';
     });
 
     window.matchMedia('(min-width: 56rem)').addEventListener('change', () => setOpen(false));
+  }
+
+  // Highlight the nav link for the section being read.
+  const links = Array.from(document.querySelectorAll<HTMLAnchorElement>('.links a[href^="#"]'));
+  // Every top-level section is watched, so the hero (not in the nav) clears the highlight.
+  const sections = document.querySelectorAll<HTMLElement>('main > section');
+
+  if ('IntersectionObserver' in window && sections.length) {
+    const spy = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (!entry.isIntersecting) continue;
+          for (const link of links) {
+            if (link.hash === `#${entry.target.id}`) link.setAttribute('aria-current', 'true');
+            else link.removeAttribute('aria-current');
+          }
+        }
+      },
+      // A thin band across the middle of the viewport decides the active section.
+      { rootMargin: '-45% 0px -54% 0px' },
+    );
+
+    sections.forEach((section) => spy.observe(section));
   }
 </script>
 
@@ -159,7 +213,8 @@ import { nav, person, contact } from '../data/site';
   }
 
   .menu-btn,
-  .menu-cta {
+  .menu-cta,
+  .menu-inspect {
     display: none;
   }
 
@@ -169,25 +224,81 @@ import { nav, person, contact } from '../data/site';
     gap: 0.5rem;
   }
 
-  .theme-btn {
-    display: inline-grid;
-    place-items: center;
-    width: 2.75rem;
+  .links a[aria-current] {
+    color: var(--ink);
+  }
+
+  @media (min-width: 56rem) {
+    .links a {
+      position: relative;
+    }
+
+    .links a[aria-current]::after {
+      content: '';
+      position: absolute;
+      left: 0.75rem;
+      right: 0.75rem;
+      bottom: 0.25rem;
+      height: 2px;
+      background: var(--blue);
+    }
+  }
+
+  .icon-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    min-width: 2.75rem;
     height: 2.75rem;
+    padding-inline: 0.8125rem;
     border: 1px solid transparent;
     border-radius: var(--radius);
     background: none;
     color: var(--muted);
+    font-size: 0.9375rem;
+    font-weight: 500;
     cursor: pointer;
   }
 
-  .theme-btn:hover {
+  .icon-btn:hover {
     color: var(--ink);
     border-color: var(--line);
   }
 
-  .theme-btn[hidden] {
+  .icon-btn[hidden] {
     display: none;
+  }
+
+  .inspect-btn[aria-pressed='true'] {
+    color: var(--ink);
+    border-color: var(--blue);
+    box-shadow: inset 0 0 0 1px var(--blue);
+  }
+
+  .inspect-btn[aria-pressed='true'] svg {
+    color: var(--blue);
+  }
+
+  /* Text label only where the bar has room; the icon carries it elsewhere. */
+  .inspect-label {
+    display: none;
+  }
+
+  @media (min-width: 72rem) {
+    .inspect-label {
+      display: inline;
+    }
+  }
+
+  @media (max-width: 71.99rem) {
+    .inspect-btn {
+      padding-inline: 0;
+    }
+  }
+
+  .theme-btn {
+    padding-inline: 0;
   }
 
   /* Show the icon for the theme you would switch to. */
@@ -276,13 +387,25 @@ import { nav, person, contact } from '../data/site';
 
   /* Phones: the Upwork button moves into the menu to keep the bar uncluttered. */
   @media (max-width: 35.99rem) {
-    .bar-cta {
+    .bar-cta,
+    .inspect-btn {
       display: none;
     }
 
+    .menu-inspect:not([hidden]),
     .menu-cta {
       display: flex;
+      width: 100%;
       margin-top: 1.25rem;
+    }
+
+    .menu-inspect[aria-pressed='true'] {
+      border-color: var(--blue);
+      box-shadow: inset 0 0 0 1px var(--blue);
+    }
+
+    .menu-inspect + .menu-cta {
+      margin-top: 0.75rem;
     }
   }
 

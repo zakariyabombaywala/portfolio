@@ -24,7 +24,7 @@
   --step-1: 1.25rem;
   --step-2: clamp(1.375rem, 1.2rem + 0.6vw, 1.625rem);
   --step-3: clamp(2rem, 1.55rem + 1.9vw, 2.875rem);
-  --step-hero: clamp(2.625rem, 1.25rem + 5.8vw, 5.5rem);
+  --step-hero: clamp(2.875rem, 0.9rem + 5.6vw, 6rem);
 
   /* Layout */
   --container: 75rem;
@@ -234,6 +234,43 @@ main:focus {
 
 .btn--secondary:hover {
   border-color: var(--ink);
+}
+
+/* ------------------------------------------------------------------
+   Motion
+   ------------------------------------------------------------------ */
+
+/* Load-in for above-the-fold content. Set --enter-delay inline. */
+@media (prefers-reduced-motion: no-preference) {
+  .enter {
+    animation: enter 0.8s cubic-bezier(0.22, 1, 0.36, 1) var(--enter-delay, 0s) both;
+  }
+}
+
+@keyframes enter {
+  from {
+    opacity: 0;
+    transform: translateY(1rem);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Scroll reveal for [data-animate] elements. `.can-reveal` is set in <head>
+   only when JavaScript runs and motion is welcome, so content is never
+   hidden otherwise. Stagger with an inline --delay. */
+.can-reveal [data-animate] {
+  transition:
+    opacity 0.8s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.8s cubic-bezier(0.22, 1, 0.36, 1);
+  transition-delay: var(--delay, 0ms);
+}
+
+.can-reveal [data-animate]:not(.is-in) {
+  opacity: 0;
+  transform: translateY(2rem);
 }
 
 /* ------------------------------------------------------------------
