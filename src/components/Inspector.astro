@@ -1,18 +1,24 @@
 ---
 /**
- * Inspect mode: turns the page into Figma's inspect view. When the header
- * toggle is on, hovering, tapping or tabbing to anything selects it and shows
- * its layer name, type specs and size.
+ * Inspect mode (header toggle): turns the page into Figma's inspect view.
+ * Hovering, tapping or tabbing to any element draws a blue selection that
+ * glides to it, labelled with its type specs and W × H, plus a pink redline
+ * showing the gap to the previous element. Nothing is drawn while it is off.
  */
-import SelectionBox from './SelectionBox.astro';
 import { inspect } from '../data/site';
 ---
 
-<div class="inspector" data-inspector hidden aria-hidden="true">
-  <div class="box" data-inspect-box>
-    <SelectionBox />
-    <span class="name" data-inspect-name></span>
-    <span class="size" data-inspect-size></span>
+<div class="live" aria-hidden="true">
+  <div class="box" data-live-box>
+    <span class="handle handle--tl"></span>
+    <span class="handle handle--tr"></span>
+    <span class="handle handle--br"></span>
+    <span class="handle handle--bl"></span>
+    <span class="name" data-live-name></span>
+    <span class="size" data-live-size></span>
+  </div>
+  <div class="gap" data-live-gap>
+    <span class="gap-label" data-live-gap-label></span>
   </div>
 </div>
 
@@ -30,138 +36,167 @@ import { inspect } from '../data/site';
 </p>
 
 <script>
+  import { gsap, prefersMotion } from '../scripts/motion';
+  import { weightNames } from '../scripts/headline-specs';
+
+  const box = document.querySelector<HTMLElement>('[data-live-box]')!;
+  const name = document.querySelector<HTMLElement>('[data-live-name]')!;
+  const size = document.querySelector<HTMLElement>('[data-live-size]')!;
+  const gap = document.querySelector<HTMLElement>('[data-live-gap]')!;
+  const gapLabel = document.querySelector<HTMLElement>('[data-live-gap-label]')!;
   const toggles = document.querySelectorAll<HTMLButtonElement>('[data-inspect-toggle]');
-  const overlay = document.querySelector<HTMLElement>('[data-inspector]');
-  const box = document.querySelector<HTMLElement>('[data-inspect-box]');
-  const name = document.querySelector<HTMLElement>('[data-inspect-name]');
-  const size = document.querySelector<HTMLElement>('[data-inspect-size]');
   const bar = document.querySelector<HTMLElement>('[data-inspect-bar]');
   const exit = document.querySelector<HTMLButtonElement>('[data-inspect-exit]');
   const status = document.querySelector<HTMLElement>('[data-inspect-status]');
 
-  const layerNames: Record<string, string> = {
-    H1: 'Heading 1',
-    H2: 'Heading 2',
-    H3: 'Heading 3',
-    P: 'Text',
-    A: 'Link',
-    BUTTON: 'Button',
-    LI: 'List item',
-    UL: 'List',
-    OL: 'List',
-    DL: 'List',
-    DT: 'Label',
-    DD: 'Value',
-    IMG: 'Image',
-    svg: 'Icon',
-    SECTION: 'Section',
-    HEADER: 'Header',
-    FOOTER: 'Footer',
-    NAV: 'Navigation',
-    ASIDE: 'Frame',
-    TIME: 'Date',
-    MARK: 'Text',
-    FIGURE: 'Comment',
-    FIGCAPTION: 'Label',
-    BLOCKQUOTE: 'Quote',
-    PRE: 'Code',
-    CODE: 'Code',
-    SPAN: 'Text',
-    DIV: 'Frame',
-  };
+  const glide = prefersMotion() ? 0.55 : 0;
 
-  const weightNames: Record<string, string> = {
-    '400': 'Regular',
-    '500': 'Medium',
-    '600': 'SemiBold',
-    '700': 'Bold',
-    '800': 'ExtraBold',
-    '900': 'Black',
+  const layerNames: Record<string, string> = {
+    H1: 'Heading 1', H2: 'Heading 2', H3: 'Heading 3', P: 'Text', A: 'Link', BUTTON: 'Button',
+    LI: 'List item', UL: 'List', OL: 'List', DL: 'List', DT: 'Label', DD: 'Value', IMG: 'Image',
+    svg: 'Icon', SECTION: 'Section', HEADER: 'Header', FOOTER: 'Footer', NAV: 'Navigation',
+    ASIDE: 'Frame', TIME: 'Date', MARK: 'Text', PRE: 'Code', CODE: 'Code', FIGURE: 'Comment',
+    FIGCAPTION: 'Label', BLOCKQUOTE: 'Quote', SPAN: 'Text', DIV: 'Frame',
   };
 
   const hasOwnText = (el: Element) =>
     Array.from(el.childNodes).some((node) => node.nodeType === Node.TEXT_NODE && node.textContent?.trim());
 
+  /** Inspect-mode label: layer type, plus size/line-height/weight for text. */
   const describe = (el: Element) => {
     const layer = layerNames[el.tagName] ?? 'Frame';
     if (!hasOwnText(el)) return layer;
     const style = getComputedStyle(el);
     const fontSize = parseFloat(style.fontSize);
     const lineHeight = parseFloat(style.lineHeight) || fontSize * 1.2;
-    const weight = weightNames[style.fontWeight] ?? style.fontWeight;
-    return `${layer}, ${Math.round(fontSize)}/${Math.round(lineHeight)}, ${weight}`;
+    return `${layer}, ${Math.round(fontSize)}/${Math.round(lineHeight)}, ${weightNames[style.fontWeight] ?? style.fontWeight}`;
   };
 
-  let active = false;
+  let inspecting = false;
   let current: Element | null = null;
-  let frame = 0;
+  let hideTimer = 0;
 
-  const draw = () => {
-    frame = 0;
-    if (!box || !current || !current.isConnected) {
-      if (box) box.hidden = true;
+  /** Page (not viewport) coordinates, so the overlay scrolls with the content. */
+  const pageRect = (el: Element) => {
+    const r = el.getBoundingClientRect();
+    return { x: r.left + scrollX, y: r.top + scrollY, w: r.width, h: r.height, top: r.top };
+  };
+
+  // Pink redline from the previous sibling to this element, when there is a real gap.
+  const placeGap = (el: Element, instant: boolean) => {
+    let prev = el.previousElementSibling;
+    while (prev && prev.getBoundingClientRect().height === 0) prev = prev.previousElementSibling;
+    const a = prev ? pageRect(prev) : null;
+    const b = pageRect(el);
+    let vars: gsap.TweenVars | null = null;
+    let distance = 0;
+
+    if (a && a.y + a.h <= b.y - 4 && a.x < b.x + b.w && b.x < a.x + a.w) {
+      distance = b.y - (a.y + a.h);
+      vars = { x: b.x + b.w / 2, y: a.y + a.h, width: 1, height: distance };
+      gap.dataset.axis = 'y';
+    } else if (a && a.x + a.w <= b.x - 4 && a.y < b.y + b.h && b.y < a.y + a.h) {
+      distance = b.x - (a.x + a.w);
+      vars = { x: a.x + a.w, y: b.y + b.h / 2, width: distance, height: 1 };
+      gap.dataset.axis = 'x';
+    }
+
+    if (!vars) {
+      gsap.to(gap, { opacity: 0, duration: 0.15, overwrite: 'auto' });
       return;
     }
-    const rect = current.getBoundingClientRect();
-    box.hidden = false;
-    box.style.transform = `translate(${rect.left}px, ${rect.top}px)`;
-    box.style.width = `${rect.width}px`;
-    box.style.height = `${rect.height}px`;
-    // Keep the name tag on screen when the element touches the top edge.
-    box.classList.toggle('name-below', rect.top < 32);
-    if (name) name.textContent = describe(current);
-    if (size) size.textContent = `${Math.round(rect.width)} × ${Math.round(rect.height)}`;
+    gapLabel.textContent = String(Math.round(distance));
+    gsap.to(gap, { ...vars, opacity: 1, duration: instant ? 0 : glide, ease: 'expo.out', overwrite: 'auto' });
   };
 
-  const schedule = () => {
-    if (!frame) frame = requestAnimationFrame(draw);
+  const place = (el: Element, instant = false) => {
+    const r = pageRect(el);
+    const appearing = Number(gsap.getProperty(box, 'opacity')) < 0.05;
+    const vars = { x: r.x, y: r.y, width: r.w, height: r.h };
+
+    name.textContent = describe(el);
+    size.textContent = `${Math.round(r.w)} × ${Math.round(r.h)}`;
+    box.classList.toggle('name-below', r.top < 40);
+
+    if (appearing || instant) {
+      gsap.set(box, { ...vars, overwrite: 'auto' });
+      if (appearing) gsap.fromTo(box, { opacity: 0, scale: 1.04 }, { opacity: 1, scale: 1, duration: glide * 0.5, ease: 'power2.out' });
+    } else {
+      gsap.to(box, { ...vars, opacity: 1, scale: 1, duration: glide, ease: 'expo.out', overwrite: 'auto' });
+    }
+    placeGap(el, appearing || instant);
   };
 
-  const select = (target: EventTarget | null) => {
-    if (!(target instanceof Element)) return;
-    let el: Element | null = target.closest('svg') ?? target;
-    if (el.closest('[data-inspect-ignore]') || el === document.body || el === document.documentElement) el = null;
+  const hide = () => {
+    current = null;
+    gsap.to([box, gap], { opacity: 0, duration: 0.2, overwrite: 'auto' });
+  };
+
+  const targetFor = (node: EventTarget | null): Element | null => {
+    if (!(node instanceof Element) || node.closest('[data-inspect-ignore]')) return null;
+    const el = node.closest('svg') ?? node;
+    return el === document.body || el === document.documentElement ? null : el;
+  };
+
+  const select = (node: EventTarget | null) => {
+    const el = targetFor(node);
+    window.clearTimeout(hideTimer);
+    if (!el) {
+      // Small delay so moving between neighbouring frames doesn't flicker.
+      if (current) hideTimer = window.setTimeout(hide, 90);
+      return;
+    }
     if (el === current) return;
     current = el;
-    schedule();
+    place(el);
   };
 
-  const setActive = (on: boolean) => {
-    active = on;
-    current = null;
+  document.addEventListener('pointerover', (event) => inspecting && select(event.target));
+  document.addEventListener('pointerdown', (event) => inspecting && select(event.target));
+  document.addEventListener('focusin', (event) => inspecting && select(event.target));
+
+  // Keep the selection glued to elements that move on their own (sticky header, reveals).
+  let frame = 0;
+  const follow = () => {
+    frame = 0;
+    if (current?.isConnected) place(current, true);
+  };
+  addEventListener('scroll', () => current && !frame && (frame = requestAnimationFrame(follow)), { passive: true });
+  addEventListener('resize', () => current && !frame && (frame = requestAnimationFrame(follow)));
+
+  // Inspect mode toggle
+  const setInspecting = (on: boolean) => {
+    inspecting = on;
+    hide();
     toggles.forEach((toggle) => toggle.setAttribute('aria-pressed', String(on)));
-    if (overlay) overlay.hidden = !on;
     if (bar) bar.hidden = !on;
-    if (box) box.hidden = true;
     document.documentElement.classList.toggle('is-inspecting', on);
     if (status) status.textContent = (on ? status.dataset.on : status.dataset.off) ?? '';
   };
 
   toggles.forEach((toggle) => {
     toggle.hidden = false;
-    toggle.addEventListener('click', () => setActive(!active));
+    toggle.addEventListener('click', () => setInspecting(!inspecting));
   });
 
   exit?.addEventListener('click', () => {
-    setActive(false);
+    setInspecting(false);
     toggles[0]?.focus();
   });
 
-  document.addEventListener('pointerover', (event) => active && select(event.target));
-  document.addEventListener('pointerdown', (event) => active && select(event.target));
-  document.addEventListener('focusin', (event) => active && select(event.target));
-  document.addEventListener('scroll', () => active && schedule(), { passive: true });
-  window.addEventListener('resize', () => active && schedule());
-
   document.addEventListener('keydown', (event) => {
-    if (event.key === 'Escape' && active) setActive(false);
+    if (event.key === 'Escape' && inspecting) setInspecting(false);
   });
 </script>
 
 <style>
-  .inspector {
-    position: fixed;
-    inset: 0;
+  /* Spans the page, not the viewport, so selections scroll with content. */
+  .live {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 0;
     z-index: 60;
     pointer-events: none;
   }
@@ -170,18 +205,30 @@ import { inspect } from '../data/site';
     position: absolute;
     top: 0;
     left: 0;
+    opacity: 0;
+    outline: 1.5px solid var(--blue);
+    will-change: transform, width, height;
   }
 
-  .box[hidden] {
-    display: none;
+  .handle {
+    position: absolute;
+    width: 8px;
+    height: 8px;
+    background: var(--handle);
+    border: 1.5px solid var(--blue);
   }
+
+  .handle--tl { top: -4px; left: -4px; }
+  .handle--tr { top: -4px; right: -4px; }
+  .handle--br { bottom: -4px; right: -4px; }
+  .handle--bl { bottom: -4px; left: -4px; }
 
   .name,
-  .size {
+  .size,
+  .gap-label {
     position: absolute;
     padding: 0.125rem 0.375rem;
     border-radius: 3px;
-    background: var(--blue);
     color: #fff;
     font-size: 0.75rem;
     font-weight: 600;
@@ -189,21 +236,69 @@ import { inspect } from '../data/site';
     white-space: nowrap;
   }
 
+  .name,
+  .size {
+    background: var(--blue);
+  }
+
   .name {
-    bottom: calc(100% + 6px);
-    left: -1px;
+    bottom: calc(100% + 8px);
+    left: -1.5px;
   }
 
   .box.name-below .name {
     bottom: auto;
-    top: calc(100% + 28px);
+    top: calc(100% + 30px);
   }
 
   .size {
-    top: calc(100% + 6px);
+    top: calc(100% + 8px);
     left: 50%;
     transform: translateX(-50%);
     font-variant-numeric: tabular-nums;
+  }
+
+  /* Spacing redline: a pink line with end ticks and the distance. */
+  .gap {
+    position: absolute;
+    top: 0;
+    left: 0;
+    opacity: 0;
+    background: var(--pink);
+  }
+
+  .gap::before,
+  .gap::after {
+    content: '';
+    position: absolute;
+    background: var(--pink);
+  }
+
+  .gap[data-axis='y']::before,
+  .gap[data-axis='y']::after {
+    left: -4px;
+    width: 9px;
+    height: 1px;
+  }
+
+  .gap[data-axis='y']::before { top: 0; }
+  .gap[data-axis='y']::after { bottom: 0; }
+
+  .gap[data-axis='x']::before,
+  .gap[data-axis='x']::after {
+    top: -4px;
+    width: 1px;
+    height: 9px;
+  }
+
+  .gap[data-axis='x']::before { left: 0; }
+  .gap[data-axis='x']::after { right: 0; }
+
+  .gap-label {
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: var(--pink);
   }
 
   .bar {
@@ -239,8 +334,10 @@ import { inspect } from '../data/site';
   }
 
   @media (forced-colors: active) {
+    .box { outline-color: Highlight; }
     .name,
-    .size {
+    .size,
+    .gap-label {
       border: 1px solid CanvasText;
     }
   }

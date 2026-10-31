@@ -4,12 +4,12 @@ import { contact, person } from '../data/site';
 
 <section class="section contact" id="contact" aria-labelledby="contact-title">
   <div class="container">
-    <h2 id="contact-title" data-animate>{contact.title}</h2>
-    <p class="body" data-animate style="--delay: 100ms">{contact.body}</p>
+    <h2 id="contact-title" data-split>{contact.title}</h2>
+    <p class="body" data-animate>{contact.body}</p>
 
-    <a class="email" href={`mailto:${person.email}`} data-animate style="--delay: 200ms">{person.email}</a>
+    <a class="email" href={`mailto:${person.email}`} data-animate>{person.email}</a>
 
-    <div class="actions" data-animate style="--delay: 300ms">
+    <div class="actions" data-animate>
       <button
         class="btn btn--secondary copy"
         type="button"
@@ -19,17 +19,19 @@ import { contact, person } from '../data/site';
       >
         <span data-copy-label>{contact.copyLabel}</span>
       </button>
-      <a class="btn btn--primary" href={person.upwork} target="_blank" rel="noopener">
+      <a class="btn btn--primary" href={person.upwork} target="_blank" rel="noopener" data-magnetic>
         {contact.upworkLabel}<span class="sr-only"> (opens in a new tab)</span>
       </a>
       <span class="sr-only" role="status" aria-live="polite" data-copy-status></span>
     </div>
 
-    <p class="where">{person.location}. {person.relocation}.</p>
+    <p class="where">{person.location}</p>
   </div>
 </section>
 
 <script>
+  import { gsap, SplitText, finePointer, prefersMotion } from '../scripts/motion';
+
   const button = document.querySelector<HTMLButtonElement>('[data-copy]');
   const label = document.querySelector<HTMLElement>('[data-copy-label]');
   const status = document.querySelector<HTMLElement>('[data-copy-status]');
@@ -74,6 +76,22 @@ import { contact, person } from '../data/site';
       }, 2400);
     });
   }
+
+  // Hovering the email sends a ripple through its letters.
+  const email = document.querySelector<HTMLElement>('.email');
+  if (email && prefersMotion() && finePointer() && window.matchMedia('(min-width: 48rem)').matches) {
+    document.fonts.ready.then(() => {
+      const { chars } = SplitText.create(email, { type: 'chars' });
+      let wave: gsap.core.Timeline | undefined;
+      email.addEventListener('pointerenter', () => {
+        if (wave?.isActive()) return;
+        wave = gsap
+          .timeline()
+          .to(chars, { yPercent: -24, duration: 0.2, ease: 'power2.out', stagger: 0.016 })
+          .to(chars, { yPercent: 0, duration: 0.6, ease: 'elastic.out(1, 0.4)', stagger: 0.016 }, 0.2);
+      });
+    });
+  }
 </script>
 
 <style>
@@ -83,6 +101,8 @@ import { contact, person } from '../data/site';
   }
 
   h2 {
+    /* Contains the split-word masks' negative margins. */
+    display: flow-root;
     max-width: 18ch;
     font-size: var(--step-3);
     letter-spacing: -0.02em;
@@ -105,13 +125,21 @@ import { contact, person } from '../data/site';
     line-height: 1.1;
     letter-spacing: -0.025em;
     overflow-wrap: anywhere;
-    text-decoration-thickness: 2px;
-    text-underline-offset: 0.16em;
-    text-decoration-color: var(--line);
+    padding-bottom: 0.12em;
+    text-decoration: none;
+    /* Underline drawn as backgrounds (letters get split for the hover ripple):
+       a grey rule, with a blue one that sweeps across on hover. */
+    background:
+      linear-gradient(var(--blue), var(--blue)) no-repeat left bottom / 0% 3px,
+      linear-gradient(var(--line), var(--line)) no-repeat left bottom / 100% 2px;
+    transition: background-size 0.6s cubic-bezier(0.65, 0, 0.35, 1);
   }
 
-  .email:hover {
-    text-decoration-color: var(--blue);
+  .email:hover,
+  .email:focus-visible {
+    background-size:
+      100% 3px,
+      100% 2px;
   }
 
   .actions {

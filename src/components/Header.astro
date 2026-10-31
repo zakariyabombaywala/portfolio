@@ -24,6 +24,7 @@ import { nav, person, contact, inspect } from '../data/site';
             </li>
           ))}
         </ul>
+        <span class="nav-indicator" aria-hidden="true" data-nav-indicator></span>
         <button
           class="btn btn--secondary menu-inspect"
           type="button"
@@ -81,7 +82,7 @@ import { nav, person, contact, inspect } from '../data/site';
         </svg>
         <span class="sr-only" data-theme-label>Switch theme</span>
       </button>
-      <a class="btn btn--primary bar-cta" href={person.upwork} target="_blank" rel="noopener">
+      <a class="btn btn--primary bar-cta" href={person.upwork} target="_blank" rel="noopener" data-magnetic>
         {contact.upworkLabel}<span class="sr-only"> (opens in a new tab)</span>
       </a>
     </div>
@@ -89,6 +90,8 @@ import { nav, person, contact, inspect } from '../data/site';
 </header>
 
 <script>
+  import { gsap, prefersMotion } from '../scripts/motion';
+
   // Theme toggle
   const toggle = document.querySelector<HTMLButtonElement>('[data-theme-toggle]');
   const label = document.querySelector<HTMLElement>('[data-theme-label]');
@@ -167,6 +170,43 @@ import { nav, person, contact, inspect } from '../data/site';
 
     sections.forEach((section) => spy.observe(section));
   }
+
+  // The underline glides to the hovered (or focused) link, then back to the current section's link.
+  const indicator = document.querySelector<HTMLElement>('[data-nav-indicator]');
+  const list = document.querySelector<HTMLElement>('.links');
+
+  if (indicator && list) {
+    const wide = window.matchMedia('(min-width: 56rem)');
+    const glide = prefersMotion() ? 0.45 : 0;
+
+    const moveTo = (link: HTMLElement | null) => {
+      const base = indicator.parentElement?.getBoundingClientRect();
+      if (!link || !base || !wide.matches) {
+        gsap.to(indicator, { opacity: 0, duration: 0.2, overwrite: 'auto' });
+        return;
+      }
+      const r = link.getBoundingClientRect();
+      const inset = parseFloat(getComputedStyle(link).paddingLeft);
+      const appearing = Number(gsap.getProperty(indicator, 'opacity')) < 0.05;
+      const vars = { x: r.left - base.left + inset, width: r.width - inset * 2, opacity: 1 };
+      if (appearing) gsap.set(indicator, { x: vars.x, width: vars.width });
+      gsap.to(indicator, { ...vars, duration: glide, ease: 'power3.out', overwrite: 'auto' });
+    };
+
+    const currentLink = () => links.find((link) => link.hasAttribute('aria-current')) ?? null;
+
+    for (const link of links) {
+      link.addEventListener('pointerenter', () => moveTo(link));
+      link.addEventListener('focus', () => moveTo(link));
+      link.addEventListener('blur', () => moveTo(currentLink()));
+    }
+    list.addEventListener('pointerleave', () => moveTo(currentLink()));
+    new MutationObserver(() => !list.matches(':hover') && moveTo(currentLink())).observe(list, {
+      subtree: true,
+      attributeFilter: ['aria-current'],
+    });
+    wide.addEventListener('change', () => moveTo(currentLink()));
+  }
 </script>
 
 <style>
@@ -228,19 +268,26 @@ import { nav, person, contact, inspect } from '../data/site';
     color: var(--ink);
   }
 
+  /* One underline that glides between links (positioned by the script). */
+  .nav-indicator {
+    display: none;
+  }
+
   @media (min-width: 56rem) {
-    .links a {
+    .menu {
       position: relative;
     }
 
-    .links a[aria-current]::after {
-      content: '';
+    .nav-indicator {
+      display: block;
       position: absolute;
-      left: 0.75rem;
-      right: 0.75rem;
+      left: 0;
       bottom: 0.25rem;
+      width: 0;
       height: 2px;
       background: var(--blue);
+      opacity: 0;
+      pointer-events: none;
     }
   }
 

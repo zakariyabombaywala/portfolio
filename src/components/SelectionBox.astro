@@ -2,12 +2,11 @@
 /**
  * Figma-style selection: a 1px blue outline with four square corner handles.
  * - mode="draw": the outline traces itself in once on page load (hero only).
- * - mode="hover": hidden until the nearest `.selectable` ancestor is hovered or focused.
- * - mode="reveal": traces in, then deselects, when the parent gets `.is-revealed`.
+ * Hover selections elsewhere are drawn by the gliding overlay in Inspector.astro.
  * The parent must be `position: relative`.
  */
 interface Props {
-  mode?: 'draw' | 'hover' | 'reveal' | 'static';
+  mode?: 'draw' | 'static';
   /** CSS inset around the parent, e.g. "-8px" or "12px -16px". */
   inset?: string;
 }
@@ -70,23 +69,7 @@ const { mode = 'static', inset = '0px' } = Astro.props;
   .handle--br { bottom: -3px; right: -3px; }
   .handle--bl { bottom: -3px; left: -3px; }
 
-  /* Hover mode: instant, like the canvas in Figma. */
-  .sel--hover {
-    opacity: 0;
-  }
-
-  :global(.selectable:hover) > .sel--hover,
-  :global(.selectable:focus-within) > .sel--hover {
-    opacity: 1;
-  }
-
-  /* Inspect mode draws its own selection; avoid showing two at once. */
-  :global(html.is-inspecting .selectable) > .sel--hover {
-    opacity: 0;
-  }
-
-  /* Draw mode: the one orchestrated load animation on the page.
-     The outline traces clockwise, then the handles land. */
+  /* Draw mode: the outline traces clockwise, then the handles land. */
   @media (prefers-reduced-motion: no-preference) {
     .sel--draw .side--top,
     .sel--draw .side--bottom {
@@ -111,41 +94,6 @@ const { mode = 'static', inset = '0px' } = Astro.props;
     .sel--draw .handle--tr { animation-delay: 1.19s; }
     .sel--draw .handle--br { animation-delay: 1.23s; }
     .sel--draw .handle--bl { animation-delay: 1.27s; }
-  }
-
-  /* Reveal mode: select, hold, deselect. Purely decorative, so it stays
-     hidden without JavaScript or with reduced motion. */
-  .sel--reveal {
-    opacity: 0;
-  }
-
-  @media (prefers-reduced-motion: no-preference) {
-    :global(.is-revealed) > .sel--reveal {
-      animation: select-hold 1.9s linear both;
-    }
-
-    :global(.is-revealed) > .sel--reveal .side--top,
-    :global(.is-revealed) > .sel--reveal .side--bottom {
-      animation: draw-x 0.2s cubic-bezier(0.65, 0, 0.35, 1) both;
-    }
-
-    :global(.is-revealed) > .sel--reveal .side--right,
-    :global(.is-revealed) > .sel--reveal .side--left {
-      animation: draw-y 0.14s cubic-bezier(0.65, 0, 0.35, 1) both;
-    }
-
-    :global(.is-revealed) > .sel--reveal .side--right { animation-delay: 0.2s; }
-    :global(.is-revealed) > .sel--reveal .side--bottom { animation-delay: 0.34s; }
-    :global(.is-revealed) > .sel--reveal .side--left { animation-delay: 0.54s; }
-
-    :global(.is-revealed) > .sel--reveal .handle {
-      animation: handle-in 0.2s cubic-bezier(0.34, 1.56, 0.64, 1) 0.68s both;
-    }
-  }
-
-  @keyframes select-hold {
-    0%, 80% { opacity: 1; }
-    100% { opacity: 0; }
   }
 
   @keyframes draw-x {

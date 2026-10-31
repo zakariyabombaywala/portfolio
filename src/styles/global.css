@@ -11,6 +11,8 @@
   --line: #d5d9e0;
   --blue: #0d99ff;
   --pink: #f2487a;
+  /* Figma's multiplayer purple, used only by the roaming Designer cursor. */
+  --purple: #9747ff;
   /* Focus ring: a deeper blue so it passes 3:1 against the light canvas. */
   --focus: #0b6bcb;
   --handle: #ffffff;
@@ -217,7 +219,29 @@ main:focus {
   cursor: pointer;
 }
 
+/* Hover glow that follows the cursor inside the button (--bx/--by set in Base.astro). */
+.btn {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.btn::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: radial-gradient(7rem circle at var(--bx, 50%) var(--by, 50%), var(--glow), transparent 70%);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.btn:hover::before {
+  opacity: 1;
+}
+
 .btn--primary {
+  --glow: color-mix(in srgb, var(--on-ink) 30%, transparent);
   background: var(--ink);
   color: var(--on-ink);
 }
@@ -227,6 +251,7 @@ main:focus {
 }
 
 .btn--secondary {
+  --glow: color-mix(in srgb, var(--blue) 22%, transparent);
   background: var(--surface);
   border-color: var(--line);
   color: var(--ink);
@@ -258,19 +283,13 @@ main:focus {
   }
 }
 
-/* Scroll reveal for [data-animate] elements. `.can-reveal` is set in <head>
-   only when JavaScript runs and motion is welcome, so content is never
-   hidden otherwise. Stagger with an inline --delay. */
-.can-reveal [data-animate] {
-  transition:
-    opacity 0.8s cubic-bezier(0.22, 1, 0.36, 1),
-    transform 0.8s cubic-bezier(0.22, 1, 0.36, 1);
-  transition-delay: var(--delay, 0ms);
-}
+/* Scroll reveals for [data-animate] are driven by GSAP (see Base.astro).
+   `.can-reveal` is set in <head> only when JavaScript runs and motion is
+   welcome; component CSS keys extra effects off it and `.is-in`. */
 
-.can-reveal [data-animate]:not(.is-in) {
-  opacity: 0;
-  transform: translateY(2rem);
+/* Lenis handles smooth scrolling; native smooth scrolling would fight it. */
+html.lenis {
+  scroll-behavior: auto;
 }
 
 /* ------------------------------------------------------------------

@@ -27,7 +27,7 @@ const og = {
   name: 'Muhammad Zakariya',
   role: 'Front-End Tech Lead',
   line: 'React, Astro & WordPress. Figma to web.',
-  footer: 'Surat, India. Open to relocation',
+  footer: 'Surat, Gujarat, India',
 };
 
 /* ------------------------------------------------------------------

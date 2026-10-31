@@ -104,22 +104,61 @@ const personSchema = {
     <slot />
 
     <script>
-      // Reveal [data-animate] elements as they scroll into view.
+      import 'lenis/dist/lenis.css';
+      import Lenis from 'lenis';
+      import { gsap, ScrollTrigger, finePointer, prefersMotion } from '../scripts/motion';
+
       (window as Window & { __revealReady?: boolean }).__revealReady = true;
 
-      const items = document.querySelectorAll('[data-animate]');
-      const observer = new IntersectionObserver(
-        (entries) => {
-          for (const entry of entries) {
-            if (!entry.isIntersecting) continue;
-            entry.target.classList.add('is-in');
-            observer.unobserve(entry.target);
-          }
-        },
-        { rootMargin: '0px 0px -8% 0px', threshold: 0.12 },
-      );
+      const items = gsap.utils.toArray<HTMLElement>('[data-animate]');
+      const reveal = (batch: HTMLElement[]) => {
+        batch.forEach((el) => el.classList.add('is-in'));
+        gsap.to(batch, { opacity: 1, y: 0, duration: 1.1, ease: 'expo.out', stagger: 0.1, overwrite: true });
+      };
 
-      items.forEach((item) => observer.observe(item));
+      if (prefersMotion()) {
+        // Smooth scrolling, kept in sync with ScrollTrigger. In-page links still work.
+        const lenis = new Lenis({ autoRaf: false, lerp: 0.11, anchors: { offset: -88 } });
+        lenis.on('scroll', ScrollTrigger.update);
+        gsap.ticker.add((time) => lenis.raf(time * 1000));
+        gsap.ticker.lagSmoothing(0);
+
+        // Content rises in, a batch at a time, as it scrolls into view.
+        // Opacity only (not visibility), so keyboard users can still reach everything.
+        gsap.set(items, { opacity: 0, y: 56 });
+        ScrollTrigger.batch(items, { start: 'top 90%', once: true, onEnter: (batch) => reveal(batch as HTMLElement[]) });
+        document.addEventListener('focusin', (event) => {
+          const hidden = (event.target as Element).closest<HTMLElement>('[data-animate]:not(.is-in)');
+          if (hidden) reveal([hidden]);
+        });
+
+        if (finePointer()) {
+          // Button glow follows the cursor (see .btn::before in global.css).
+          document.addEventListener('pointermove', (event) => {
+            const button = (event.target as Element).closest<HTMLElement>('.btn');
+            if (!button) return;
+            const r = button.getBoundingClientRect();
+            button.style.setProperty('--bx', `${event.clientX - r.left}px`);
+            button.style.setProperty('--by', `${event.clientY - r.top}px`);
+          });
+
+          // Magnetic buttons: drift toward the pointer, spring back on leave.
+          gsap.utils.toArray<HTMLElement>('[data-magnetic]').forEach((button) => {
+            const xTo = gsap.quickTo(button, 'x', { duration: 0.5, ease: 'power3.out' });
+            const yTo = gsap.quickTo(button, 'y', { duration: 0.5, ease: 'power3.out' });
+            button.addEventListener('pointermove', (event) => {
+              const r = button.getBoundingClientRect();
+              xTo((event.clientX - (r.left + r.width / 2)) * 0.3);
+              yTo((event.clientY - (r.top + r.height / 2)) * 0.4);
+            });
+            button.addEventListener('pointerleave', () => {
+              gsap.to(button, { x: 0, y: 0, duration: 0.9, ease: 'elastic.out(1, 0.4)', overwrite: true });
+            });
+          });
+        }
+      } else {
+        items.forEach((el) => el.classList.add('is-in'));
+      }
     </script>
   </body>
 </html>

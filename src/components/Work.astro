@@ -1,6 +1,5 @@
 ---
 import SectionHeading from './SectionHeading.astro';
-import SelectionBox from './SelectionBox.astro';
 import { work, type ProjectCategory } from '../data/site';
 
 const categories = Object.entries(work.categories) as [ProjectCategory, string][];
@@ -26,14 +25,14 @@ const hostname = (url: string) => new URL(url).hostname.replace(/^www\./, '');
 
     <ol class="rows">
       {work.projects.map((project) => (
-        <li class="row selectable" data-category={project.category} data-animate>
-          <div class="thumb">
+        <li class="row" data-category={project.category} data-animate>
+          <div class="thumb" data-thumb>
             {project.image ? (
               <img
                 src={project.image}
                 alt={project.imageAlt ?? `Screenshot of ${project.title}`}
-                width="1200"
-                height="750"
+                width="720"
+                height="1800"
                 loading="lazy"
                 decoding="async"
               />
@@ -72,48 +71,103 @@ const hostname = (url: string) => new URL(url).hostname.replace(/^www\./, '');
 
             {project.url ? <p class="domain">{hostname(project.url)}</p> : <p class="domain">Live link coming soon</p>}
           </div>
-
-          <SelectionBox mode="hover" inset="0.75rem calc(var(--gutter) * -0.5)" />
         </li>
       ))}
     </ol>
   </div>
+
+  <span class="visit" aria-hidden="true" data-visit>{work.visitLabel}</span>
 </section>
 
 <script>
+  import { gsap, Flip, finePointer, prefersMotion } from '../scripts/motion';
+
   const group = document.querySelector<HTMLElement>('[data-filters]');
   const status = document.querySelector<HTMLElement>('[data-filter-status]');
   const rows = Array.from(document.querySelectorAll<HTMLElement>('.rows > li'));
 
+  // Filters: rows glide into their new places (GSAP Flip) instead of jumping.
   if (group) {
     const buttons = Array.from(group.querySelectorAll<HTMLButtonElement>('[data-filter]'));
     group.hidden = false;
 
     const apply = (filter: string) => {
-      const animate = document.documentElement.classList.contains('can-reveal');
+      const state = Flip.getState(rows);
       let shown = 0;
 
       for (const row of rows) {
         const visible = filter === 'all' || row.dataset.category === filter;
         row.hidden = !visible;
-        if (!visible) continue;
-
-        // Replay the rise-in so the list visibly reshuffles.
-        if (animate && row.classList.contains('is-in')) {
-          row.classList.remove('is-in');
-          row.style.setProperty('--delay', `${shown * 70}ms`);
-          requestAnimationFrame(() => requestAnimationFrame(() => row.classList.add('is-in')));
-        }
-        shown++;
+        if (visible) shown++;
       }
 
       for (const button of buttons) {
         button.setAttribute('aria-pressed', String(button.dataset.filter === filter));
       }
       if (status) status.textContent = `Showing ${shown} ${shown === 1 ? 'project' : 'projects'}`;
+
+      if (!prefersMotion()) return;
+      Flip.from(state, {
+        duration: 0.7,
+        ease: 'power3.inOut',
+        absolute: true,
+        onEnter: (entering) => {
+          entering.forEach((el) => el.classList.add('is-in'));
+          return gsap.fromTo(entering, { opacity: 0, y: 48 }, { opacity: 1, y: 0, duration: 0.7, delay: 0.25, stagger: 0.08, ease: 'expo.out' });
+        },
+        onLeave: (leaving) => gsap.to(leaving, { opacity: 0, scale: 0.97, duration: 0.3 }),
+      });
     };
 
     buttons.forEach((button) => button.addEventListener('click', () => apply(button.dataset.filter ?? 'all')));
+  }
+
+  // Screenshot tilts in 3D toward the pointer while it scrolls through the page (CSS).
+  if (prefersMotion() && finePointer()) {
+    for (const row of rows) {
+      const thumb = row.querySelector<HTMLElement>('[data-thumb]');
+      if (!thumb) continue;
+      gsap.set(thumb, { transformPerspective: 900 });
+      const rotateX = gsap.quickTo(thumb, 'rotationX', { duration: 0.6, ease: 'power3.out' });
+      const rotateY = gsap.quickTo(thumb, 'rotationY', { duration: 0.6, ease: 'power3.out' });
+
+      row.addEventListener('pointermove', (event) => {
+        const r = thumb.getBoundingClientRect();
+        const clamp = gsap.utils.clamp(-1, 1);
+        const dx = clamp((event.clientX - (r.left + r.width / 2)) / r.width);
+        const dy = clamp((event.clientY - (r.top + r.height / 2)) / r.height);
+        rotateY(dx * 9);
+        rotateX(-dy * 9);
+      });
+      row.addEventListener('pointerleave', () => {
+        rotateX(0);
+        rotateY(0);
+      });
+    }
+
+    // "Visit site" pill that trails the cursor over rows that link somewhere.
+    const visit = document.querySelector<HTMLElement>('[data-visit]');
+    if (visit) {
+      gsap.set(visit, { xPercent: -50, yPercent: -50, scale: 0, autoAlpha: 0 });
+      const xTo = gsap.quickTo(visit, 'x', { duration: 0.45, ease: 'power3.out' });
+      const yTo = gsap.quickTo(visit, 'y', { duration: 0.45, ease: 'power3.out' });
+      const show = (on: boolean) =>
+        gsap.to(visit, { scale: on ? 1 : 0, autoAlpha: on ? 1 : 0, duration: on ? 0.4 : 0.25, ease: on ? 'back.out(2)' : 'power2.in', overwrite: 'auto' });
+
+      for (const row of rows) {
+        if (!row.querySelector('.title-link')) continue;
+        row.addEventListener('pointerenter', (event) => {
+          gsap.set(visit, { x: event.clientX + 56, y: event.clientY + 36 });
+          show(true);
+        });
+        row.addEventListener('pointermove', (event) => {
+          xTo(event.clientX + 56);
+          yTo(event.clientY + 36);
+        });
+        row.addEventListener('pointerleave', () => show(false));
+      }
+      addEventListener('scroll', () => show(false), { passive: true });
+    }
   }
 </script>
 
@@ -161,17 +215,54 @@ const hostname = (url: string) => new URL(url).hostname.replace(/^www\./, '');
   }
 
   .rows {
+    position: relative;
     border-top: 1px solid var(--line);
   }
 
   .row {
     position: relative;
+    isolation: isolate;
     display: grid;
     grid-template-columns: minmax(12rem, 18rem) minmax(0, 1fr);
     gap: clamp(1.5rem, 1rem + 2vw, 3rem);
     align-items: center;
     padding-block: 2rem;
     border-bottom: 1px solid var(--line);
+  }
+
+  /* Hover: a surface panel sweeps in from the left behind the row. */
+  .row::before {
+    content: '';
+    position: absolute;
+    inset: 0 calc(var(--gutter) * -0.5);
+    z-index: -1;
+    background: var(--surface);
+    transform: scaleX(0);
+    transform-origin: right center;
+    transition: transform 0.6s cubic-bezier(0.65, 0, 0.35, 1);
+  }
+
+  .row:hover::before {
+    transform: scaleX(1);
+    transform-origin: left center;
+  }
+
+  /* Cursor-following pill (positioned by the script). */
+  .visit {
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: 70;
+    visibility: hidden;
+    padding: 0.625rem 1rem;
+    border-radius: 999px;
+    background: var(--ink);
+    color: var(--on-ink);
+    font-size: 0.875rem;
+    font-weight: 600;
+    white-space: nowrap;
+    pointer-events: none;
+    box-shadow: 0 10px 30px -10px rgb(0 0 0 / 0.35);
   }
 
   .row[hidden] {
@@ -191,6 +282,7 @@ const hostname = (url: string) => new URL(url).hostname.replace(/^www\./, '');
     content: '';
     position: absolute;
     inset: 0;
+    z-index: 1;
   }
 
   .row:hover .title-link {
@@ -198,37 +290,51 @@ const hostname = (url: string) => new URL(url).hostname.replace(/^www\./, '');
   }
 
   .thumb {
+    position: relative;
     aspect-ratio: 16 / 10;
     overflow: hidden;
     border: 1px solid var(--line);
-    border-radius: 4px;
+    border-radius: 6px;
     background: var(--surface);
+    box-shadow: 0 1px 2px rgb(0 0 0 / 0.04);
+    transition: box-shadow 0.4s ease;
+  }
+
+  .row:hover .thumb {
+    box-shadow: 0 24px 48px -16px rgb(0 0 0 / 0.25);
   }
 
   /* Screenshot wipes in from the left as the row is revealed. */
   :global(.can-reveal) .thumb {
-    transition: clip-path 1s cubic-bezier(0.65, 0, 0.35, 1) 0.15s;
+    transition:
+      clip-path 1s cubic-bezier(0.65, 0, 0.35, 1) 0.15s,
+      box-shadow 0.4s ease;
   }
 
   :global(.can-reveal) .row:not(.is-in) .thumb {
     clip-path: inset(0 100% 0 0);
   }
 
+  /* Tall screenshot (1:2.5): shows the top, scrolls through the page on hover.
+     The box is 25% of the image's height, so -75% reaches the bottom. */
   .thumb img {
+    position: absolute;
+    top: 0;
+    left: 0;
     width: 100%;
-    height: 100%;
-    object-fit: cover;
-    object-position: top;
+    height: auto;
   }
 
   @media (prefers-reduced-motion: no-preference) {
     .thumb img {
-      transition: transform 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+      transition: transform 1.2s cubic-bezier(0.65, 0, 0.35, 1);
     }
 
     .row:hover .thumb img,
     .row:focus-within .thumb img {
-      transform: scale(1.04);
+      transform: translateY(-75%);
+      transition-duration: 6s;
+      transition-timing-function: cubic-bezier(0.45, 0, 0.55, 1);
     }
   }
 
@@ -259,6 +365,12 @@ const hostname = (url: string) => new URL(url).hostname.replace(/^www\./, '');
     display: grid;
     gap: 0.5rem;
     max-width: 40rem;
+    /* Padding, not a transform: a transform would trap the row-wide link area inside .body. */
+    transition: padding-left 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .row:hover .body {
+    padding-left: 0.5rem;
   }
 
   .meta {

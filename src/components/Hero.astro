@@ -16,7 +16,7 @@ const headlineParts = hero.headline.split('*');
         <h1 id="hero-title" class="headline" data-headline>
           {headlineParts.map((part, i) =>
             i % 2 === 1 ? (
-              <><mark class="hl">{part}</mark><span class="caret" aria-hidden="true" /></>
+              <><mark class="hl">{part}</mark><span class="caret" aria-hidden="true"><span class="caret-bar" /></span></>
             ) : (
               part
             ),
@@ -52,7 +52,7 @@ const headlineParts = hero.headline.split('*');
       <p class="intro enter" style="--enter-delay: 0.3s">{hero.intro}</p>
 
       <div class="ctas enter" style="--enter-delay: 0.42s">
-        <a class="btn btn--primary" href={hero.primaryCta.href}>{hero.primaryCta.label}</a>
+        <a class="btn btn--primary" href={hero.primaryCta.href} data-magnetic>{hero.primaryCta.label}</a>
         <a class="btn btn--secondary" href={hero.secondaryCta.href}>{hero.secondaryCta.label}</a>
       </div>
     </div>
@@ -70,7 +70,133 @@ const headlineParts = hero.headline.split('*');
       ))}
     </dl>
   </div>
+
+  <!-- A Figma multiplayer cursor that wanders the hero, selecting things in purple. -->
+  <div class="mp" aria-hidden="true" data-mp hidden>
+    <span class="mp-box" data-mp-box></span>
+    <span class="mp-cursor" data-mp-cursor>
+      <svg viewBox="0 0 16 20" width="16" height="20">
+        <path d="M1 1v15.5l4.3-4.1 2.9 6.6 2.6-1.1-2.8-6.5H14L1 1Z" fill="var(--purple)" stroke="#fff" stroke-width="1.2" stroke-linejoin="round"></path>
+      </svg>
+      <span class="mp-name">{hero.designerName}</span>
+    </span>
+  </div>
 </section>
+
+<script>
+  // Hero motion: headline words rise in, the highlight sweeps, the text cursor
+  // blinks, the dot grid lights up around the pointer, and the Designer cursor roams.
+  import { gsap, ScrollTrigger, SplitText, finePointer, prefersMotion } from '../scripts/motion';
+
+  const hero = document.querySelector<HTMLElement>('.hero');
+  const headline = document.querySelector<HTMLElement>('[data-headline]');
+
+  if (hero && headline && prefersMotion()) {
+    // Headline: lines slide up through a mask, then the split is undone so the
+    // frame can be resized freely, then "Figma frames" gets highlighted.
+    // Lines (not words) keep the exact line spacing, so nothing jumps on revert.
+    document.fonts.ready.then(() => {
+      // The zero-width text cursor would become a line of its own; set it aside during the split.
+      const caret = headline.querySelector('.caret');
+      caret?.remove();
+      const split = SplitText.create(headline, { type: 'lines', mask: 'lines' });
+      // Room below each mask so descenders (g, y, p) aren't clipped; the negative margin keeps the layout.
+      gsap.set(split.masks, { paddingBottom: '0.16em', marginBottom: '-0.16em' });
+      gsap.set(headline, { visibility: 'visible' });
+      gsap
+        .timeline()
+        .from(split.lines, { yPercent: 115, duration: 1.1, ease: 'expo.out', stagger: 0.09 })
+        .add(() => {
+          split.revert();
+          if (caret) headline.querySelector('.hl')?.after(caret);
+        })
+        // Query after the revert: it restores the original elements.
+        .add(() => {
+          const mark = headline.querySelector('.hl');
+          const bar = headline.querySelector('.caret-bar');
+          gsap.fromTo(mark, { backgroundSize: '0% 72%' }, { backgroundSize: '100% 72%', duration: 0.6, ease: 'power3.inOut' });
+          gsap.fromTo(bar, { opacity: 1 }, { opacity: 0, duration: 0.5, ease: 'steps(1)', repeat: 6, yoyo: true, delay: 0.6 });
+        });
+    });
+
+    if (finePointer()) {
+      // Dot grid spotlight: blue dots appear around the pointer.
+      const spot = { x: -999, y: -999 };
+      const apply = () => {
+        hero.style.setProperty('--mx', `${spot.x}px`);
+        hero.style.setProperty('--my', `${spot.y}px`);
+      };
+      const xTo = gsap.quickTo(spot, 'x', { duration: 0.6, ease: 'power3.out', onUpdate: apply });
+      const yTo = gsap.quickTo(spot, 'y', { duration: 0.6, ease: 'power3.out', onUpdate: apply });
+      hero.addEventListener('pointerenter', (event) => {
+        const r = hero.getBoundingClientRect();
+        gsap.set(spot, { x: event.clientX - r.left, y: event.clientY - r.top });
+        hero.classList.add('is-lit');
+      });
+      hero.addEventListener('pointermove', (event) => {
+        const r = hero.getBoundingClientRect();
+        xTo(event.clientX - r.left);
+        yTo(event.clientY - r.top);
+      });
+      hero.addEventListener('pointerleave', () => hero.classList.remove('is-lit'));
+    }
+
+    // Designer cursor: only where there is room beside the content and a mouse.
+    const mp = hero.querySelector<HTMLElement>('[data-mp]');
+    const cursor = hero.querySelector<HTMLElement>('[data-mp-cursor]');
+    const box = hero.querySelector<HTMLElement>('[data-mp-box]');
+
+    if (mp && cursor && box && finePointer() && window.matchMedia('(min-width: 64rem)').matches) {
+      mp.hidden = false;
+      const stops = ['[data-spec="width"]', '.hl', '.ctas .btn--primary', '.facts .fact:nth-child(2)', '#hp-tab-code', '.intro']
+        .map((selector) => hero.querySelector<HTMLElement>(selector))
+        .filter((el): el is HTMLElement => el !== null);
+
+      // Position of an element relative to the hero.
+      const at = (el: HTMLElement) => {
+        const r = el.getBoundingClientRect();
+        const h = hero.getBoundingClientRect();
+        return { x: r.left - h.left, y: r.top - h.top, w: r.width, h: r.height };
+      };
+
+      gsap.set(cursor, { x: () => hero.clientWidth * 0.62, y: 60, opacity: 0 });
+      const tour = gsap.timeline({ repeat: -1, paused: true, onRepeat: () => tour.invalidate() });
+      tour.to(cursor, { opacity: 1, duration: 0.3 });
+
+      for (const el of stops) {
+        tour
+          .to(cursor, {
+            x: () => at(el).x + Math.min(at(el).w * 0.7, 160),
+            y: () => at(el).y + at(el).h * 0.6,
+            duration: 1.4,
+            ease: 'power3.inOut',
+          })
+          .to(cursor, { scale: 0.86, duration: 0.09, yoyo: true, repeat: 1 })
+          .call(() => {
+            const p = at(el);
+            gsap.set(box, { x: p.x - 4, y: p.y - 4, width: p.w + 8, height: p.h + 8 });
+            gsap.fromTo(box, { opacity: 0, scale: 1.05 }, { opacity: 1, scale: 1, duration: 0.25, ease: 'power2.out' });
+          })
+          .to(box, { opacity: 0, duration: 0.35 }, '+=1.3');
+      }
+      tour.to(cursor, { opacity: 0, duration: 0.4 }).to({}, { duration: 1.2 });
+
+      // Start after the intro, and only roam while the hero is on screen and the tab is visible.
+      gsap.delayedCall(3.4, () => {
+        const trigger = ScrollTrigger.create({
+          trigger: hero,
+          start: 'top bottom',
+          end: 'bottom top',
+          onToggle: (self) => (self.isActive && !document.hidden ? tour.play() : tour.pause()),
+        });
+        if (trigger.isActive) tour.play();
+        document.addEventListener('visibilitychange', () =>
+          document.hidden || !trigger.isActive ? tour.pause() : tour.play(),
+        );
+      });
+    }
+  }
+</script>
 
 <script>
   import { publish, toHex } from '../scripts/headline-specs';
@@ -224,7 +350,42 @@ const headlineParts = hero.headline.split('*');
 
 <style>
   .hero {
+    position: relative;
+    isolation: isolate;
+    overflow: clip;
     padding-block: clamp(2.5rem, 1rem + 3.5vw, 4.5rem) var(--section-space);
+  }
+
+  /* Figma canvas: a dot grid that fades out toward the bottom of the hero,
+     plus a blue copy of it revealed in a soft circle around the pointer. */
+  .hero::before,
+  .hero::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background-image: radial-gradient(circle, var(--dot) 1.1px, transparent 1.6px);
+    background-size: 22px 22px;
+    background-position: center top;
+  }
+
+  .hero::before {
+    --dot: color-mix(in srgb, var(--ink) 17%, transparent);
+    -webkit-mask-image: linear-gradient(to bottom, #000 55%, transparent 95%);
+    mask-image: linear-gradient(to bottom, #000 55%, transparent 95%);
+  }
+
+  .hero::after {
+    --dot: var(--blue);
+    opacity: 0;
+    transition: opacity 0.4s ease;
+    -webkit-mask-image: radial-gradient(240px circle at var(--mx, -999px) var(--my, -999px), #000 0%, transparent 75%);
+    mask-image: radial-gradient(240px circle at var(--mx, -999px) var(--my, -999px), #000 0%, transparent 75%);
+  }
+
+  .hero.is-lit::after {
+    opacity: 0.9;
   }
 
   .layout {
@@ -264,6 +425,8 @@ const headlineParts = hero.headline.split('*');
   }
 
   .headline {
+    /* Contains the split-line masks' negative margins during the intro. */
+    display: flow-root;
     max-width: 13ch;
     font-size: var(--step-hero);
     line-height: 0.95;
@@ -289,8 +452,7 @@ const headlineParts = hero.headline.split('*');
     width: 0;
   }
 
-  .caret::after {
-    content: '';
+  .caret-bar {
     position: absolute;
     left: 0.02em;
     bottom: -0.16em;
@@ -300,12 +462,29 @@ const headlineParts = hero.headline.split('*');
     opacity: 0;
   }
 
+  /* With JavaScript, GSAP runs the headline intro (see the script above):
+     hide the headline until it is split, and start the highlight empty.
+     The forced reveal is a safety net in case the script never runs. */
+  :global(.can-reveal) .headline {
+    visibility: hidden;
+    animation: force-visible 0s 2.5s forwards;
+  }
+
+  :global(.can-reveal) .hl {
+    background-size: 0% 72%;
+  }
+
+  @keyframes force-visible {
+    to { visibility: visible; }
+  }
+
+  /* Without JavaScript but with motion welcome: a CSS-only version. */
   @media (prefers-reduced-motion: no-preference) {
-    .hl {
+    :global(html:not(.can-reveal)) .hl {
       animation: highlight 0.5s cubic-bezier(0.65, 0, 0.35, 1) 1.5s both;
     }
 
-    .caret::after {
+    :global(html:not(.can-reveal)) .caret-bar {
       animation: blink 1s steps(1) 2s 4;
     }
   }
@@ -601,5 +780,65 @@ const headlineParts = hero.headline.split('*');
     .redline-label {
       border: 1px solid CanvasText;
     }
+  }
+
+  /* Designer cursor (multiplayer) and the purple selection it makes */
+  .mp {
+    position: absolute;
+    inset: 0;
+    z-index: 4;
+    pointer-events: none;
+  }
+
+  .mp[hidden] {
+    display: none;
+  }
+
+  .mp-cursor {
+    position: absolute;
+    top: 0;
+    left: 0;
+    display: flex;
+    align-items: flex-start;
+    gap: 0.125rem;
+    transform-origin: top left;
+  }
+
+  .mp-cursor svg {
+    flex: none;
+    filter: drop-shadow(0 1px 1px rgb(0 0 0 / 0.2));
+  }
+
+  .mp-name {
+    margin-top: 0.75rem;
+    padding: 0.125rem 0.5rem;
+    border-radius: 0 0.625rem 0.625rem 0.625rem;
+    background: var(--purple);
+    color: #fff;
+    font-size: 0.75rem;
+    font-weight: 600;
+    line-height: 1.4;
+    white-space: nowrap;
+  }
+
+  .mp-box {
+    position: absolute;
+    top: 0;
+    left: 0;
+    opacity: 0;
+    outline: 1.5px solid var(--purple);
+    border-radius: 2px;
+  }
+
+  /* Hover: fact values get the "selected text" highlight. */
+  .fact dd {
+    --hl: color-mix(in srgb, var(--blue) 24%, transparent);
+    width: fit-content;
+    background: linear-gradient(var(--hl), var(--hl)) no-repeat left 62% / 0% 72%;
+    transition: background-size 0.5s cubic-bezier(0.65, 0, 0.35, 1);
+  }
+
+  .fact:hover dd {
+    background-size: 100% 72%;
   }
 </style>

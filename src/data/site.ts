@@ -9,7 +9,6 @@ export const person = {
   role: 'Front-End Tech Lead',
   headlineRole: 'Front-End Tech Lead | React, Astro & WordPress | Figma to Web',
   location: 'Surat, Gujarat, India',
-  relocation: 'Open to relocation',
   email: 'zakariyabombaywala@gmail.com',
   upwork: 'https://www.upwork.com/freelancers/~01fb216550d992227e',
   company: 'EnactOn Technologies',
@@ -55,6 +54,8 @@ export const hero = {
   },
   /** Cursor-chat hint beside the frame. Visitors can drag the frame's edge to resize it. */
   resizeHint: 'Drag to resize',
+  /** Name on the multiplayer cursor that roams the hero on wide screens. */
+  designerName: 'Designer',
   intro:
     'Front-end tech lead at EnactOn Technologies. I build marketing sites and product interfaces in React, Astro and WordPress, and lead the developers who ship them.',
   primaryCta: { label: 'See selected work', href: '#work' },
@@ -62,7 +63,7 @@ export const hero = {
   facts: [
     { label: 'Currently', value: 'Tech Lead at EnactOn Technologies' },
     { label: 'Stack', value: 'React, Astro, WordPress' },
-    { label: 'Based in', value: 'Surat, India. Open to relocation' },
+    { label: 'Based in', value: 'Surat, Gujarat, India' },
   ],
 };
 
@@ -95,6 +96,8 @@ export const work = {
     wordpress: 'WordPress',
   } satisfies Record<ProjectCategory, string>,
   allLabel: 'All',
+  /** Pill that follows the cursor over a project row. */
+  visitLabel: 'Visit site',
   projects: [
     {
       title: 'ParkingMD',

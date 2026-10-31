@@ -8,8 +8,8 @@ import { skills } from '../data/site';
     <SectionHeading id="skills-title" title={skills.title} />
 
     <div class="groups">
-      {skills.groups.map((group, i) => (
-        <div class="group" data-animate style={`--delay: ${(i % 4) * 80}ms`}>
+      {skills.groups.map((group) => (
+        <div class="group" data-animate>
           <h3>{group.name}</h3>
           <ul>
             {group.items.map((item) => <li>{item}</li>)}
@@ -41,5 +41,36 @@ import { skills } from '../data/site';
   li {
     padding-block: 0.25rem;
     color: var(--muted);
+  }
+
+  /* Hover: the skill slides over and a selection handle pops in where it was. */
+  li {
+    position: relative;
+    transition:
+      transform 0.35s cubic-bezier(0.22, 1, 0.36, 1),
+      color 0.25s ease;
+  }
+
+  li::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: -0.875rem;
+    width: 6px;
+    height: 6px;
+    margin-top: -3px;
+    border: 1.5px solid var(--blue);
+    background: var(--handle);
+    transform: scale(0);
+    transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+
+  li:hover {
+    color: var(--ink);
+    transform: translateX(0.875rem);
+  }
+
+  li:hover::before {
+    transform: scale(1);
   }
 </style>
