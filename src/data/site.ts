@@ -198,6 +198,16 @@ export const work = {
   ] as Project[],
 };
 
+/**
+ * The reviews themselves live in src/data/reviews.json, newest shown first.
+ * The section hides itself when that file is empty.
+ */
+export const testimonials = {
+  title: 'Client feedback',
+  linkLabel: 'View my Upwork profile',
+  linkUrl: person.upwork,
+};
+
 export const process = {
   title: 'How I work',
   intro: 'Three steps, the same on every project, so you always know what happens next.',

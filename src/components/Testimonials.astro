@@ -1,0 +1,200 @@
+---
+/**
+ * Client feedback, styled as Figma comments: a comment pin beside each card.
+ * Reviews come from src/data/reviews.json (see src/content.config.ts), newest first.
+ */
+import { getCollection } from 'astro:content';
+import SectionHeading from './SectionHeading.astro';
+import { testimonials } from '../data/site';
+
+const reviews = (await getCollection('reviews'))
+  .map((entry) => entry.data)
+  .sort((a, b) => b.date.getTime() - a.date.getTime());
+
+const ratings = reviews.flatMap((review) => (review.rating === undefined ? [] : [review.rating]));
+const average = ratings.length ? ratings.reduce((sum, r) => sum + r, 0) / ratings.length : undefined;
+const count = `${reviews.length} client ${reviews.length === 1 ? 'review' : 'reviews'}`;
+const intro = average === undefined ? `${count}.` : `Rated ${average.toFixed(2)} out of 5 across ${count}.`;
+
+const formatDate = (date: Date) =>
+  date.toLocaleDateString('en-US', { month: 'short', year: 'numeric', timeZone: 'UTC' });
+---
+
+{reviews.length > 0 && (
+  <section class="section feedback" id="feedback" aria-labelledby="feedback-title">
+    <div class="container layout">
+      <div>
+        <SectionHeading id="feedback-title" title={testimonials.title} intro={intro} />
+        <a class="source" href={testimonials.linkUrl} target="_blank" rel="noopener" data-animate>
+          {testimonials.linkLabel}
+          <span class="sr-only"> (opens in a new tab)</span>
+        </a>
+      </div>
+
+      <div class="comments">
+        {reviews.map((review, i) => (
+          <div class="comment" data-animate style={`--delay: ${Math.min(i, 3) * 120}ms`}>
+            <span class="pin" aria-hidden="true">
+              <svg viewBox="0 0 20 20" width="18" height="18">
+                <circle cx="10" cy="7" r="3.4" fill="currentColor" />
+                <path d="M3.5 17c.8-3.4 3.4-5.2 6.5-5.2s5.7 1.8 6.5 5.2" fill="currentColor" />
+              </svg>
+            </span>
+
+            <figure class="card">
+              <figcaption class="header">
+                <span class="author">{review.author}</span>
+                <span class="context">
+                  {review.project}, <time datetime={review.date.toISOString().slice(0, 10)}>{formatDate(review.date)}</time>
+                </span>
+              </figcaption>
+
+              {review.rating !== undefined && (
+                <p class="rating">
+                  <span class="stars" style={`--rating: ${(review.rating / 5) * 100}%`} aria-hidden="true" />
+                  <span class="score" aria-hidden="true">{review.rating.toFixed(2)}</span>
+                  <span class="sr-only">Rated {review.rating} out of 5 on {review.source}</span>
+                </p>
+              )}
+
+              <blockquote class="quote" cite={review.url}>
+                <p>{review.quote}</p>
+              </blockquote>
+            </figure>
+          </div>
+        ))}
+      </div>
+    </div>
+  </section>
+)}
+
+<style>
+  .feedback {
+    padding-top: 0;
+  }
+
+  .layout {
+    display: grid;
+    gap: 0 clamp(2rem, 1rem + 4vw, 6rem);
+  }
+
+  @media (min-width: 56rem) {
+    .layout {
+      grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);
+      align-items: start;
+    }
+  }
+
+  .comments {
+    display: grid;
+    gap: 2rem;
+  }
+
+  .comment {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 0.75rem;
+    align-items: start;
+  }
+
+  /* Figma comment pin: a circle with its bottom-left corner pulled to a point. */
+  .pin {
+    display: grid;
+    place-items: center;
+    width: 2.5rem;
+    height: 2.5rem;
+    border: 2px solid var(--surface);
+    border-radius: 50% 50% 50% 0;
+    background: var(--blue);
+    color: #fff;
+    box-shadow: 0 2px 6px rgb(0 0 0 / 0.15);
+    transform-origin: bottom left;
+  }
+
+  :global(.can-reveal) .pin {
+    transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) 0.45s;
+  }
+
+  :global(.can-reveal) .comment:not(.is-in) .pin {
+    transform: scale(0);
+  }
+
+  .card {
+    margin: 0;
+    padding: clamp(1.25rem, 1rem + 1vw, 1.75rem);
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 0.75rem;
+    box-shadow:
+      0 1px 2px rgb(0 0 0 / 0.04),
+      0 12px 32px -12px rgb(0 0 0 / 0.12);
+  }
+
+  .header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.25rem 0.625rem;
+  }
+
+  .author {
+    font-weight: 700;
+  }
+
+  .context {
+    color: var(--muted);
+    font-size: var(--step--1);
+  }
+
+  .rating {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: 0.75rem;
+  }
+
+  /* Five stars, filled to the rating. */
+  .stars {
+    --star: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Cpath d='M10 1.5l2.6 5.4 5.9.8-4.3 4.1 1 5.8L10 14.8l-5.2 2.8 1-5.8L1.5 7.7l5.9-.8z'/%3E%3C/svg%3E");
+    width: 6.25rem;
+    height: 1.125rem;
+    background: linear-gradient(90deg, var(--pink) var(--rating), var(--line) var(--rating));
+    -webkit-mask: var(--star) repeat-x left center / 1.25rem 1.125rem;
+    mask: var(--star) repeat-x left center / 1.25rem 1.125rem;
+  }
+
+  .score {
+    font-size: var(--step--1);
+    font-weight: 600;
+  }
+
+  .quote {
+    margin: 1rem 0 0;
+    font-size: var(--step-2);
+    font-weight: 500;
+    line-height: 1.4;
+    letter-spacing: -0.01em;
+  }
+
+  .quote p::before {
+    content: '“';
+  }
+
+  .quote p::after {
+    content: '”';
+  }
+
+  /* Sits under the heading, pulled up into the heading's bottom margin. */
+  .source {
+    display: inline-block;
+    margin: calc(-1 * clamp(2.5rem, 2rem + 2vw, 3.5rem) + 1rem) 0 2.5rem;
+    font-size: var(--step--1);
+    font-weight: 600;
+  }
+
+  @media (forced-colors: active) {
+    .stars {
+      background: CanvasText;
+    }
+  }
+</style>
